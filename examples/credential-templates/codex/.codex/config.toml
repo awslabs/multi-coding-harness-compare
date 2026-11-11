@@ -1,0 +1,9 @@
+# Example CODEX_HOME_TEMPLATE for RUNTIME = agentcore: Codex reaches Bedrock through the
+# AgentCore execution role. Copy this directory, replace YOUR_AWS_REGION with AWS_REGION, and
+# set CODEX_HOME_TEMPLATE to the copy; preflight's codex-provider-config fix writes the same
+# settings for you. Keep it free of a `profile` key: the microVM has no ~/.aws.
+model_provider = "amazon-bedrock-runtime"
+[model_providers.amazon-bedrock-runtime.aws]
+region = "YOUR_AWS_REGION"
+wire_api = "responses"
+namespace_tools = false

@@ -1,0 +1,77 @@
+{
+  "prompt": "Add slugify(text: str) -> str to text_tools.py. Normalize Unicode with NFKD, discard non-ASCII characters, lowercase, replace each run of non-alphanumeric characters with one hyphen, and trim leading/trailing hyphens. Return an empty string for empty or symbol-only input. Raise TypeError for non-string input. Preserve echo and its existing behavior. Use only Python standard-library dependencies. Add meaningful unittest tests in a new root-level test_*.py file and a short README.md with a usage example. Implement and run the tests.",
+  "repository": "examples/demo-project",
+  "validation_plan": {
+    "criteria": [
+      {
+        "id": "slug-behavior",
+        "requirement": "slugify implements the specified normalization, separator, empty-input and type-validation behavior",
+        "weight": 5,
+        "critical": true,
+        "check_ids": [
+          "acceptance"
+        ]
+      },
+      {
+        "id": "echo-regression",
+        "requirement": "Preserve the existing echo behavior",
+        "weight": 2,
+        "critical": true,
+        "check_ids": [
+          "echo-acceptance",
+          "regression"
+        ]
+      },
+      {
+        "id": "stdlib-docs-tests",
+        "requirement": "Use the standard library, document usage, add and execute new unittest tests",
+        "weight": 2,
+        "critical": true,
+        "check_ids": [
+          "acceptance",
+          "candidate-tests",
+          "syntax"
+        ]
+      }
+    ],
+    "checks": [
+      {
+        "id": "acceptance",
+        "group": "acceptance",
+        "command": "python /acceptance/test_slug.py -v",
+        "mandatory": true
+      },
+      {
+        "id": "echo-acceptance",
+        "group": "acceptance",
+        "command": "python /acceptance/run_regression.py",
+        "mandatory": true
+      },
+      {
+        "id": "regression",
+        "group": "regression",
+        "command": "python /acceptance/run_regression.py",
+        "mandatory": true
+      },
+      {
+        "id": "candidate-tests",
+        "group": "candidate",
+        "command": "python -m unittest discover -s . -p 'test*.py' -v",
+        "mandatory": true
+      },
+      {
+        "id": "syntax",
+        "group": "project",
+        "command": "python -m compileall -q .",
+        "mandatory": true
+      }
+    ],
+    "acceptance_files": {
+      "test_slug.py": "import ast\nimport importlib.util\nimport pathlib\nimport sys\nimport unittest\nsys.path.insert(0, '/workspace')\nfrom text_tools import slugify\n\nclass SlugAcceptance(unittest.TestCase):\n    def test_basic_words(self):\n        self.assertEqual(slugify('Hello World'), 'hello-world')\n        self.assertEqual(slugify('already-slugged'), 'already-slugged')\n    def test_punctuation_and_whitespace(self):\n        self.assertEqual(slugify('  Hello,,,   WORLD!!  '), 'hello-world')\n        self.assertEqual(slugify('one___two / three'), 'one-two-three')\n    def test_unicode_normalization(self):\n        self.assertEqual(slugify('Caf\u00e9 D\u00e9j\u00e0 Vu'), 'cafe-deja-vu')\n    def test_empty_and_symbol_only(self):\n        self.assertEqual(slugify(''), '')\n        self.assertEqual(slugify(' !!! '), '')\n    def test_non_strings(self):\n        for value in (None, 1, [], {}, b'bytes'):\n            with self.assertRaises(TypeError):\n                slugify(value)\n    def test_documentation_and_new_tests(self):\n        root = pathlib.Path('/workspace')\n        self.assertTrue((root / 'README.md').is_file())\n        self.assertIn('slugify', (root / 'README.md').read_text())\n        files = [p for p in root.rglob('test*.py') if p.name != 'test_baseline.py']\n        self.assertTrue(files, 'Meaningful task tests are required and independently executed separately')\n    def test_standard_library_only(self):\n        tree = ast.parse(pathlib.Path('/workspace/text_tools.py').read_text())\n        for node in ast.walk(tree):\n            modules = [a.name.split('.')[0] for a in node.names] if isinstance(node, ast.Import) else [node.module.split('.')[0]] if isinstance(node, ast.ImportFrom) and node.module else []\n            for name in modules:\n                self.assertIn(name, sys.stdlib_module_names)\n\nif __name__ == '__main__':\n    unittest.main()\n",
+      "run_regression.py": "import importlib.util\nimport sys\nimport unittest\nsys.path.insert(0, '/workspace')\nspec = importlib.util.spec_from_file_location('frozen_regression', '/regression/test_baseline.py')\nmodule = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(module)\nresult = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromModule(module))\nsys.exit(0 if result.wasSuccessful() else 1)\n"
+    },
+    "source": "Task-derived demonstration acceptance plan frozen before candidate development",
+    "gaps": [],
+    "applicability": {}
+  }
+}

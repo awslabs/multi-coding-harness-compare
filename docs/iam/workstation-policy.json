@@ -1,0 +1,86 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3Objects",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:GetObjectVersion",
+        "s3:AbortMultipartUpload"
+      ],
+      "Resource": "arn:aws:s3:::my-bucket/code/ai-coding-assistant/*"
+    },
+    {
+      "Sid": "S3List",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:ListBucketVersions"
+      ],
+      "Resource": "arn:aws:s3:::my-bucket",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "code/ai-coding-assistant/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "BedrockInvoke",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:*::foundation-model/*",
+        "arn:aws:bedrock:::foundation-model/*",
+        "arn:aws:bedrock:*:123456789012:inference-profile/*",
+        "arn:aws:bedrock:*:123456789012:project/default"
+      ]
+    },
+    {
+      "Sid": "BedrockCatalogue",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:ListInferenceProfiles",
+        "bedrock:GetInferenceProfile",
+        "bedrock:ListFoundationModels"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "STSCallerIdentity",
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    },
+    {
+      "Sid": "AgentCoreGet",
+      "Effect": "Allow",
+      "Action": "bedrock-agentcore:GetAgentRuntime",
+      "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/codecouncil*"
+    },
+    {
+      "Sid": "ListOnly",
+      "Effect": "Allow",
+      "Action": "bedrock-agentcore:ListAgentRuntimes",
+      "Resource": "*"
+    },
+    {
+      "Sid": "AgentCoreInvoke",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-agentcore:InvokeAgentRuntime",
+        "bedrock-agentcore:CreateAgentRuntimeSession",
+        "bedrock-agentcore:GetAgentRuntimeSession",
+        "bedrock-agentcore:InvokeAgentRuntimeCommand"
+      ],
+      "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/codecouncil*"
+    }
+  ]
+}

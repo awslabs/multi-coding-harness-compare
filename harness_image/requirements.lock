@@ -1,0 +1,25 @@
+# harness_image standalone dependencies — pinned to match requirements.lock
+# Run: uv pip install --require-hashes -r harness_image/requirements.lock
+# Reuses the same boto3/botocore pins as the main application.
+# Regenerate with: uv pip compile --generate-hashes --no-header --no-annotate --no-deps
+boto3==1.43.92 \
+    --hash=sha256:30a1ff4bb729831c4890e0a0d121f9d43f066de724c5916e358c9f68f94749dd \
+    --hash=sha256:aee16b1ad54caf6e7b8f48f2682d18b03a2feefaf7afaf56fed6204016fa687d
+botocore==1.43.92 \
+    --hash=sha256:a5efebb7d8fd9e7a47a1ac3138688dae4234fcb2f5355c51f7c7aced63ef6df8 \
+    --hash=sha256:a6f003615a3b6059628146e4a1d13bc132f7bc8f415c469a63d1c616bccee18f
+jmespath==1.1.0 \
+    --hash=sha256:472c87d80f36026ae83c6ddd0f1d05d4e510134ed462851fd5f754c8c3cbb88d \
+    --hash=sha256:a5663118de4908c91729bea0acadca56526eb2698e83de10cd116ae0f4e97c64
+python-dateutil==2.9.0.post0 \
+    --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
+    --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
+s3transfer==0.19.2 \
+    --hash=sha256:ba0309fd86be3c27dbf78cdd813c13c5e1df16e5874b99d2535ebbdfb9892993 \
+    --hash=sha256:d8168eccca828cbb2cd573675333f3bddd254313a9c42494b84c76b539e8ba25
+six==1.17.0 \
+    --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
+    --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
+urllib3==2.7.0 \
+    --hash=sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c \
+    --hash=sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897

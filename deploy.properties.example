@@ -1,0 +1,361 @@
+# deploy.properties — every value that changes between users, machines and AWS accounts.
+#
+# HOW TO USE
+#   1. Copy this file:
+#        cp deploy.properties.example deploy.properties
+#   2. Fill every YOUR_ value and the /absolute/path/to/projects line, then run
+#      ./bootstrap.sh — it asks only for values that are still marked as placeholders.
+#      Or leave them: bootstrap stops with exit 20 and one question per unanswered key,
+#      and each answer is recorded with ./bootstrap.sh --set KEY=VALUE.
+#      (Without step 1, the first ./bootstrap.sh run makes this copy itself.)
+#   3. AI assistants: use ./bootstrap.sh --set KEY=VALUE for each answer (repeatable).
+#      Unknown keys, multi-line values, and invalid values for typed keys are refused
+#      with exit 2 (the "error" field has the message and a suggested corrected value).
+#      Editing the file directly is equivalent; a bad value there is caught by preflight's
+#      configuration-loads check (exit 40, gate: human) with the same suggested fix.
+#      Never write environment-specific values into config.toml.
+#
+#   Naming rules for typed keys:
+#     AGENTCORE_RUNTIME_NAME_PREFIX : [A-Za-z][A-Za-z0-9_]*, max 41 chars (no hyphens)
+#     AGENTCORE_EXECUTION_ROLE_NAME : [\\w+=,.@-], max 64 chars
+#     AGENTCORE_INLINE_POLICY_NAME  : [\\w+=,.@-], max 128 chars
+#     USER_NAMESPACE                : [a-z0-9][a-z0-9-]* (lowercase, no underscores)
+#
+# Format: KEY = VALUE, one per line; lines starting with # are comments; a value may
+# reference another key as ${KEY}. An empty value means "not set". Never put credentials
+# here — secret-looking keys (TOKEN, SECRET, PASSWORD, API_KEY, ...) are refused because
+# this file holds coordinates only: profile names, regions, bucket URIs, role names, paths.
+#
+# Precedence: a literal value in config.toml still wins for that field. Use
+# multi-coding-harness-compare doctor to see where every value came from. Changes take
+# effect when the API and worker restart; keys whose comment says "agentcore-deploy" also
+# need that deployment step.
+
+# ══ Required: replace every YOUR_ value ═════════════════════════════════════════════════════
+# Core settings every deployment must fill before the first run.
+
+# Where harnesses run: native (macOS Seatbelt on this workstation) or agentcore (Bedrock
+# AgentCore microVMs).
+#   native    = macOS Seatbelt sandbox on this workstation
+#   agentcore = Bedrock AgentCore microVMs; Claude Code and Codex authenticate
+#               through the runtime's execution role — no API key is forwarded.
+#               Runtimes must be deployed before the first comparison (agentcore-deploy).
+RUNTIME = YOUR_RUNTIME
+
+# How Kiro authenticates its login into each run (Kiro has no execution-role path on any runtime).
+#   copy-host-login = copies this workstation's Kiro login into each run's private HOME.
+#                     This always fetches the login from the host, even when KIRO_HOME_TEMPLATE
+#                     is set; the template supplies non-secret configuration only.
+#   login-in-home   = copies nothing; expects a login already inside KIRO_HOME_TEMPLATE
+#                     (or placed manually in the run HOME for fully offline setups).
+KIRO_AUTH = YOUR_KIRO_AUTH
+
+# AWS credential profile for S3 artifacts, the Bedrock judge, and AgentCore.
+# Empty string uses the ambient AWS credential chain.
+# Restart only: a profile selects credentials and is baked into nothing deployed.
+AWS_PROFILE = YOUR_AWS_PROFILE
+
+# AWS region for S3 artifacts, the Bedrock judge, and AgentCore (for example us-east-1).
+# agentcore-deploy: runtimes, their environment and the role's log scope are regional.
+AWS_REGION = YOUR_AWS_REGION
+
+# S3 bucket name (without s3://) in this account; referenced by the URI keys below as ${S3_BUCKET}.
+# You create the bucket; the URIs below reference it.
+S3_BUCKET = YOUR_BUCKET
+
+# Comma-separated absolute paths to project directories comparisons may run against.
+# The service refuses repositories outside these roots.
+REPOSITORY_ROOTS = /absolute/path/to/projects
+
+
+# ══ Permission prompts: ask the human before deploying ═════════════════════════════════════
+# Who answers the coding harnesses' own permission prompts during a run. The default is false;
+# true is recommended. bootstrap does not stop for this key, so the assistant asks it with the
+# required inputs above. Restart only (stop, then --start); no agentcore-deploy.
+#   true  = answered automatically, inside each run's sandbox:
+#           Claude Code runs in auto mode; its classifier allows routine actions and blocks
+#             risky ones, and what it escalates still comes to you as an approval card. Where
+#             auto mode is unavailable (for example a model without it), its prompts are allowed.
+#           Codex's auto-review agent answers Codex's approval requests.
+#           Kiro's permission prompts are allowed.
+#   false = every permission prompt comes to you as an approval card, and the run waits for
+#           your answer: Claude Code's escalations (all of its prompts where auto mode is
+#           unavailable), every Codex approval request and every Kiro permission prompt.
+# Clarification questions and the test review reach you either way.
+AUTO_APPROVE = false
+
+
+# ══ This deployment's names in the AWS account and on this machine ════════════════════════
+# Deployment identity settings; keep identical across workstations sharing the same AWS account.
+#
+# Keeping these values identical on every workstation that shares the same AWS account lets
+# all workstations find the same IAM role and AgentCore runtimes without redeploying —
+# one set of runtimes is shared by the whole team (no redeploy per workstation).
+#
+# For a SEPARATE deployment in the same account (for example, testing a new version
+# alongside a running one): change SERVICE_PORT, AGENTCORE_RUNTIME_NAME_PREFIX (letters,
+# digits and underscores only), role and policy names, and both S3 URI prefixes. Otherwise
+# agentcore-deploy updates the shared runtimes in place.
+#
+# Alternatively, set AGENTCORE_ISOLATION = per-user and USER_NAMESPACE to give each
+# operator isolated role and runtime names within the same shared deployment.
+
+# Local TCP port the API server and UI listen on.
+SERVICE_PORT = 8765
+
+# Local directory for the SQLite store, run workspaces, logs, and access token.
+# Relative paths resolve against the directory holding this file.
+# Keep it on a local disk — not in iCloud/Dropbox/OneDrive and not on a network share.
+# Restart; moving it abandons warm AgentCore sessions and local history.
+DATA_DIR = .arena
+
+# s3://bucket/prefix/ where finished comparison artifacts are archived.
+# Restart only; comparisons archived under a previous URI are no longer readable here.
+ARTIFACT_S3_URI = s3://${S3_BUCKET}/output/codecouncil/
+
+# s3://bucket/prefix/ for AgentCore job, result, and bundle transfer objects.
+# agentcore-deploy: bundles and the execution role's S3 scope follow this prefix.
+AGENTCORE_TRANSFER_S3_URI = s3://${S3_BUCKET}/code/ai-coding-assistant-agcore-runtime/
+
+# Prefix used to name and discover the three AgentCore runtimes as <prefix>_claude, <prefix>_codex, <prefix>_kiro.
+# agentcore-deploy creates <prefix>_<harness> runtimes; old ones are left in place.
+# Characters: letters, digits and underscores only ([A-Za-z][A-Za-z0-9_]*) — no hyphens.
+# Use underscores instead of hyphens, e.g. "my_deployment" not "my-deployment".
+AGENTCORE_RUNTIME_NAME_PREFIX = codecouncil
+
+# IAM execution role name that agentcore-deploy creates or refreshes for runtime execution.
+# agentcore-deploy creates a role under the new name; the old one is left in place.
+# Characters: [\w+=,.@-] (letters, digits, +=,.@-), length 1-64.
+AGENTCORE_EXECUTION_ROLE_NAME = CodeCouncilBedrockAgentCoreRuntimeRole
+
+# Name of the inline IAM policy that agentcore-deploy writes onto the execution role.
+# agentcore-deploy adds a policy under the new name; delete the old one by hand.
+# Characters: [\w+=,.@-] (letters, digits, +=,.@-), length 1-128.
+AGENTCORE_INLINE_POLICY_NAME = CodeCouncilAgentCoreRuntime
+
+# Tag and description prefix applied to AWS resources created by agentcore-deploy.
+# Renaming it does not rename existing resources: the tag applies to resources created
+# afterwards, and agentcore-deploy updates existing runtimes' descriptions.
+AGENTCORE_APPLICATION_TAG = CodeCouncil
+
+# Optional. Short label for this user: starts with a letter or digit, then letters, digits, or hyphens ([a-z0-9][a-z0-9-]*).
+# With AGENTCORE_ISOLATION = per-user it also scopes runtime and role names.
+# Unset (commented out) keeps the original S3 layout — no per-user prefix is added.
+# Uncomment and set when you need per-user isolation within a shared deployment.
+# Restart; existing AgentCore objects remain under the old namespace.
+# USER_NAMESPACE = yourlogin
+
+# Isolation mode for AgentCore resource names: shared (default) or per-user.
+# shared (default): all users share role and runtime names.
+# per-user: agentcore-deploy creates role/runtime names suffixed with USER_NAMESPACE;
+#           the execution role's S3 scope narrows to the user's prefix.
+#           Changing to per-user needs agentcore-deploy, then restart.
+# AGENTCORE_ISOLATION = shared
+
+# Optional. Pin an existing IAM role ARN to use as-is; its policies are never refreshed by agentcore-deploy.
+# agentcore-deploy: a pinned role is used as-is and its policies are not refreshed.
+# AGENTCORE_EXECUTION_ROLE_ARN = arn:aws:iam::123456789012:role/YOUR_ROLE
+
+# Optional. Expected AWS account ID; lets doctor flag cached AgentCore runtime ARNs from another account.
+# When the account changes, run agentcore-deploy in the new account to redeploy runtimes there.
+# AWS_ACCOUNT_ID = 123456789012
+
+
+# ══ Models (Bedrock inference profiles enabled in AWS_REGION for this account) ══════════
+# Bedrock inference profile IDs for scoring, test planning, and default harness models.
+
+# Bedrock inference profile that scores harness implementations.
+# Unset: scoring and acceptance-test generation are unavailable.
+JUDGE_MODEL = us.anthropic.claude-sonnet-4-6
+
+# Bedrock inference profile that plans acceptance tests; unset falls back to JUDGE_MODEL.
+PLANNING_MODEL = us.anthropic.claude-opus-5
+
+# Default Bedrock model for Claude Code runs (harnesses.claude.model); unset uses the CLI's native default.
+# CLAUDE_MODEL = us.anthropic.claude-sonnet-4-6
+# Default Bedrock model for Codex runs (harnesses.codex.model); unset uses the CLI's native default.
+# CODEX_MODEL  = us.openai.gpt-5.6-sol
+# Default model for Kiro runs (harnesses.kiro.model); unset uses the CLI's native default.
+# KIRO_MODEL   = claude-sonnet-5
+
+
+# ══ Optional — uncomment and set only what you need ══════════════════════════════════════
+# Fine-grained controls; safe to leave untouched for most deployments.
+
+# ── CLI paths ────────────────────────────────────────────────────────────────────────────
+# Absolute paths to harness CLI executables when they are not on the service's PATH.
+# Optional on any runtime; set only when the CLI is not already on the service's PATH.
+# Restart only.
+# Claude Code executable path, when claude is not on the service's PATH.
+# CLAUDE_CLI_PATH = /absolute/path/to/claude
+# Codex CLI executable path, when codex is not on the service's PATH.
+# CODEX_CLI_PATH  = /absolute/path/to/codex
+# Kiro CLI executable path, when kiro-cli is not on the service's PATH.
+# KIRO_CLI_PATH   = /absolute/path/to/kiro-cli
+
+# ── Dedicated HOME templates ──────────────────────────────────────────────────────────────
+# Directory copied whole into each run's private HOME before the run starts.
+# IMPORTANT: each configured *_HOME_TEMPLATE directory MUST exist on this workstation;
+# a missing template blocks every run attempt with a clear error.  Create the directory
+# first, or remove the key from deploy.properties.  Restart only.
+# Directory copied into each Claude Code run's private HOME before the run starts.
+# CLAUDE_HOME_TEMPLATE = .arena/credential-templates/claude
+# Directory copied into each Codex run's private HOME before the run starts.
+# Needed on agentcore unless HARNESS_CONFIG_DEFAULT_CHOICE = default or CODEX_CONFIG_S3_URI
+# provides the config; preflight's codex-provider-config check produces the exact command
+# to create this template when it is missing.
+# CODEX_HOME_TEMPLATE  = .arena/credential-templates/codex
+# Directory copied into each Kiro run's private HOME.
+# When KIRO_AUTH = login-in-home, place data.sqlite3 from `kiro-cli login` inside it at:
+#   .local/share/kiro-cli/data.sqlite3
+# When KIRO_AUTH = copy-host-login, the template supplies non-secret config only; the
+# login is always copied from this workstation's Kiro data dir, not from the template.
+# KIRO_HOME_TEMPLATE   = .arena/credential-templates/kiro
+
+# ── Harness configuration ──────────────────────────────────────────────────────────────────
+# Per-harness config-directory, copy allowlist, overlay, and environment passthrough settings.
+# The workstation config directory (CLAUDE_CONFIG_DIR etc.) is only read when the effective
+# configuration choice is "default": on native runs by default, or on agentcore runs when
+# HARNESS_CONFIG_DEFAULT_CHOICE = default. On agentcore runs the default is "overrides", so
+# harnesses use only the explicit paths (H_SKILLS_DIRS, H_STEERING_FILES, H_MCP_CONFIG), the
+# S3 prefix (H_CONFIG_S3_URI), or the HOME template; the workstation folder is never read.
+# All keys in this section need a restart.
+
+# Default configuration choice applied to each run that does not specify its own.
+#   default   = copy the workstation config dir (H_CONFIG_DIR) plus explicit files
+#   overrides = only explicit files (H_SKILLS_DIRS / H_STEERING_FILES / H_MCP_CONFIG /
+#               H_CONFIG_S3_URI); workstation folder is never read
+#   none      = clean HOME; no operator config at all
+# Unset: "overrides" when RUNTIME = agentcore, "default" otherwise (native).
+# The UI preselects the effective default for each harness: "overrides" on agentcore,
+# "default" on native, or the value of this key when set.
+# HARNESS_CONFIG_DEFAULT_CHOICE = overrides
+
+# Workstation config directories each harness reads defaults from.
+# Read only when the effective configuration choice is "default" (native runs, or on agentcore
+# when HARNESS_CONFIG_DEFAULT_CHOICE = default); on agentcore runs with "overrides" (the default)
+# or "none", this directory is never read and the value has no effect.
+# Workstation config directory Claude Code reads defaults from (default: $CLAUDE_CONFIG_DIR or ~/.claude).
+# CLAUDE_CONFIG_DIR = ~/.claude
+# Workstation config directory Codex reads defaults from (default: $CODEX_HOME or ~/.codex).
+# CODEX_CONFIG_DIR  = ~/.codex
+# Workstation config directory Kiro reads defaults from (default: ~/.kiro).
+# KIRO_CONFIG_DIR   = ~/.kiro
+# Comma-separated paths (relative to config dir) added to / removed from the copy allowlist.
+# Read only for native runs, or on agentcore when a comparison chooses "default" or
+# HARNESS_CONFIG_DEFAULT_CHOICE = default.
+# Comma-separated paths added to the Claude config copy allowlist (relative to CLAUDE_CONFIG_DIR).
+# CLAUDE_CONFIG_INCLUDE = plugins/
+# Comma-separated paths added to the Codex config copy allowlist (relative to CODEX_CONFIG_DIR).
+# CODEX_CONFIG_INCLUDE  = custom/
+# Comma-separated paths added to the Kiro config copy allowlist (relative to KIRO_CONFIG_DIR).
+# KIRO_CONFIG_INCLUDE   = extra/
+# Read only for native runs, or on agentcore when a comparison chooses "default" or
+# HARNESS_CONFIG_DEFAULT_CHOICE = default.
+# Comma-separated paths (or mcp:<name>) removed from the Claude config copy allowlist.
+# CLAUDE_CONFIG_EXCLUDE = agents/,mcp:my-large-server
+# Comma-separated paths (or mcp:<name>) removed from the Codex config copy allowlist.
+# CODEX_CONFIG_EXCLUDE  = prompts/
+# Comma-separated paths (or mcp:<name>) removed from the Kiro config copy allowlist.
+# KIRO_CONFIG_EXCLUDE   = hooks/
+# Extra skills directories, steering files, and MCP configs overlaid into each run.
+# All path values accept ~ (home expansion) and glob wildcards (*, ?, [...]).
+# Directories in STEERING_FILES are expanded to all *.md files inside them.
+# Unmatched patterns are reported by preflight (warn) and in the run's setup detail.
+# Comma-separated directories (or glob patterns) whose skill folders are overlaid into each Claude Code run.
+# CLAUDE_SKILLS_DIRS    = /path/to/shared/skills,~/more-skills/*
+# Comma-separated directories (or glob patterns) whose skill folders are overlaid into each Codex run.
+# CODEX_SKILLS_DIRS     = /path/to/shared/skills
+# Comma-separated directories (or glob patterns) whose skill folders are overlaid into each Kiro run.
+# KIRO_SKILLS_DIRS      = /path/to/shared/skills
+# Comma-separated files, directories, or globs copied as .claude/rules/ steering entries.
+# Directories are expanded to all *.md files inside them.
+# CLAUDE_STEERING_FILES = /path/to/CLAUDE.md,~/steering/*.md
+# Comma-separated files, directories, or globs merged as AGENTS.md steering entries into each Codex run.
+# CODEX_STEERING_FILES  = /path/to/AGENTS.md
+# Comma-separated files, directories, or globs merged as .kiro/steering entries into each Kiro run.
+# KIRO_STEERING_FILES   = /path/to/AGENTS.md
+# JSON file (or glob) with an 'mcpServers' key merged into each Claude Code run's .claude.json.
+# CLAUDE_MCP_CONFIG     = /path/to/mcp.json
+# TOML file (or glob) with [mcp_servers] merged into each Codex run's config.toml.
+# CODEX_MCP_CONFIG      = /path/to/mcp.toml
+# JSON file (or glob) merged into each Kiro run's .kiro/settings/mcp.json.
+# KIRO_MCP_CONFIG       = /path/to/mcp.json
+# S3 prefix synced read-only into each run's HOME config dir (before explicit overrides).
+# s3://bucket/prefix/ synced read-only into each Claude Code run's HOME config dir before the run.
+# CLAUDE_CONFIG_S3_URI  = s3://${S3_BUCKET}/config/claude/
+# s3://bucket/prefix/ synced read-only into each Codex run's HOME config dir before the run.
+# CODEX_CONFIG_S3_URI   = s3://${S3_BUCKET}/config/codex/
+# s3://bucket/prefix/ synced read-only into each Kiro run's HOME config dir before the run.
+# KIRO_CONFIG_S3_URI    = s3://${S3_BUCKET}/config/kiro/
+# Reuse the installed CLI's setup on the native runtime (true/false; default false).
+# true/false (default false): reuse the installed Claude executable and provider config on the native runtime.
+# CLAUDE_INHERIT_HOST_SETUP = false
+# true/false (default false): reuse the installed Codex executable and provider config on the native runtime.
+# CODEX_INHERIT_HOST_SETUP  = false
+# Not supported for Kiro; the feature is limited to claude and codex. Leave unset.
+# KIRO_INHERIT_HOST_SETUP   = false
+# Environment variable names forwarded to each harness.
+# Defaults: ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN / OPENAI_API_KEY / (empty)
+# Comma-separated env var names forwarded to Claude Code (default: ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN).
+# CLAUDE_ENV_PASSTHROUGH = ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN
+# Comma-separated env var names forwarded to Codex (default: OPENAI_API_KEY).
+# CODEX_ENV_PASSTHROUGH  = OPENAI_API_KEY
+# Comma-separated env var names forwarded to Kiro (default: empty).
+# KIRO_ENV_PASSTHROUGH   =
+
+# ── Image build sources and versions (all need agentcore-deploy) ──────────────────────────
+# How agentcore-deploy selects and builds each harness version for the AgentCore bundle.
+#   pinned    = use the version pinned in harness_image/versions.py (default; reproducible)
+#   installed = detect the version on this workstation and build that for arm64
+#   latest    = resolve the latest published version from the registry
+# pinned | installed | latest: how the Claude Code version for the AgentCore bundle is selected.
+# CLAUDE_HARNESS_SOURCE = pinned
+# pinned | installed | latest: how the Codex version for the AgentCore bundle is selected.
+# CODEX_HARNESS_SOURCE  = pinned
+# pinned | installed | latest: how the Kiro version for the AgentCore bundle is selected.
+# KIRO_HARNESS_SOURCE   = pinned
+# Explicit version override — takes precedence over the source strategy's resolution.
+# Explicit Claude Code version for the AgentCore bundle, overriding the source strategy.
+# CLAUDE_HARNESS_VERSION = 0.2.152
+# Explicit Codex version for the AgentCore bundle, overriding the source strategy.
+# CODEX_HARNESS_VERSION  = 0.154.0
+# Explicit Kiro version for the AgentCore bundle, overriding the source strategy.
+# KIRO_HARNESS_VERSION   = 2.21.3
+# When true, agentcore-deploy bakes a non-secret snapshot of this workstation's harness
+# configuration into the bundle as fallback defaults for the in-VM bootstrap.
+# false (default) | true: when true, bakes this workstation's non-secret harness config snapshot into the bundle.
+# HARNESS_IMAGE_WORKSTATION_CONFIG = false
+# Comma-separated https hostnames downloads may come from (default covers all vendors).
+# HARNESS_TRUSTED_SOURCES = registry.npmjs.org,pypi.org,files.pythonhosted.org,desktop-release.q.us-east-1.amazonaws.com
+# Must be a host in HARNESS_TRUSTED_SOURCES.
+# URL template for downloading Kiro into the AgentCore bundle; {version} and {arch} are substituted.
+# KIRO_DOWNLOAD_URL = https://desktop-release.q.us-east-1.amazonaws.com/{version}/kirocli-{arch}-linux.zip
+
+# ── Customer-managed KMS key (agentcore-deploy) ───────────────────────────────────────────
+# Optional SSE-KMS on the AgentCore transfer bucket; agentcore-deploy grants the execution role kms:Decrypt and kms:GenerateDataKey.
+# Customer-managed KMS key ARN for SSE-KMS encryption of the AgentCore transfer bucket.
+# AGENTCORE_TRANSFER_KMS_KEY_ARN = arn:aws:kms:us-east-1:123456789012:key/YOUR_KEY_ID
+
+# ── AWS credential file overrides ─────────────────────────────────────────────────────────
+# Needed only when AWS config/credentials files are not in the default locations.
+# Restart only.
+# Path to the AWS config file, overriding the default ~/.aws/config.
+# AWS_CONFIG_FILE       = /path/to/aws/config
+# Path to the AWS credentials file, overriding the default ~/.aws/credentials.
+# AWS_SHARED_CREDS_FILE = /path/to/aws/credentials
+
+# ── Codex provider ────────────────────────────────────────────────────────────────────────
+# Restart only.
+# Codex model provider: amazon-bedrock (default) or amazon-bedrock-runtime.
+# Env var CODECOUNCIL_CODEX_PROVIDER is also honoured as a fallback when this key is unset.
+# CODEX_PROVIDER = amazon-bedrock
+
+# ── Pin AgentCore runtime ARNs (restart only) ─────────────────────────────────────────────
+# Optional. Pin runtime ARNs directly to skip discovery by name; useful when sharing runtimes across accounts or namespaces.
+# Optional. Pin the Claude AgentCore runtime ARN; skips discovery by AGENTCORE_RUNTIME_NAME_PREFIX.
+# CLAUDE_RUNTIME_ARN = arn:aws:bedrock-agentcore:${AWS_REGION}:${AWS_ACCOUNT_ID}:runtime/codecouncil_claude-SUFFIX
+# Optional. Pin the Codex AgentCore runtime ARN; skips discovery by AGENTCORE_RUNTIME_NAME_PREFIX.
+# CODEX_RUNTIME_ARN  = arn:aws:bedrock-agentcore:${AWS_REGION}:${AWS_ACCOUNT_ID}:runtime/codecouncil_codex-SUFFIX
+# Optional. Pin the Kiro AgentCore runtime ARN; skips discovery by AGENTCORE_RUNTIME_NAME_PREFIX.
+# KIRO_RUNTIME_ARN   = arn:aws:bedrock-agentcore:${AWS_REGION}:${AWS_ACCOUNT_ID}:runtime/codecouncil_kiro-SUFFIX

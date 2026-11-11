@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>multi-coding-harness-compare · Build, compare, verify</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/artifact-readiness.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body class="needs-access">
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="multi-coding-harness-compare home"><span class="logo">M<span>↗</span></span><span class="brand-name">multi-coding-harness-compare</span></a>
+    <div class="workspace-label">DEVELOPMENT WORKSPACE</div>
+    <button id="new-comparison" class="new-button" disabled>＋ New comparison</button>
+    <select id="compact-history" aria-label="Choose comparison"><option value="">Choose comparison</option></select>
+    <div class="history-title">COMPARISONS <span id="history-count">0</span></div>
+    <nav id="history"></nav>
+    <div class="sidebar-bottom"><span class="live-dot" id="worker-dot"></span><span id="worker-status">Checking connection</span><button id="settings-button" class="icon-button" aria-label="Runtime settings" disabled>⚙</button></div>
+  </aside>
+  <main>
+    <header class="topbar"><div><span class="breadcrumb">Workspace</span><span class="slash">/</span><span id="page-title">New comparison</span></div><span class="local-badge">LOCAL WORKSPACE</span></header>
+    <p id="connection-pending" role="status">Connecting to multi-coding-harness-compare…</p>
+    <section id="access-panel" class="access-panel hidden" aria-labelledby="access-title">
+      <div class="eyebrow">YOUR LOCAL DEVELOPMENT WORKSPACE</div>
+      <h1 id="access-title">Connect to multi-coding-harness-compare</h1>
+      <p>This browser needs your local access link before it can load models, browse projects, or start tasks.</p>
+      <p>Run this command from the multi-coding-harness-compare project folder to open a connected browser tab:</p>
+      <pre>.venv/bin/multi-coding-harness-compare open</pre>
+      <p>Or paste the access link printed by <code>multi-coding-harness-compare start</code> below.</p>
+      <form id="access-form">
+        <label for="access-link">Local access link or token</label>
+        <input id="access-link" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your local access link" required>
+        <p id="access-error" class="notice hidden" role="alert"></p>
+        <div class="access-actions"><button id="connect-browser" type="submit" class="primary">Connect browser</button><button id="check-connection" type="button" class="secondary">Check connection again</button></div>
+      </form>
+      <p class="access-note">Each browser connects separately. Your running tasks and saved work continue while you reconnect.</p>
+    </section>
+    <div id="workspace-content" class="hidden">
+    <section class="heading"><div><div class="eyebrow">ONE TASK. YOUR CHOICE OF CODING HARNESSES.</div><h1>Build in parallel. <span>Compare with evidence.</span></h1><p>Choose Claude Code, Codex, or Kiro to work independently from the same starting point.</p></div><button id="export" class="secondary hidden">↓ Export report</button></section>
+    <section id="system-warning" class="notice hidden"></section>
+    <section class="task-card" id="task-card">
+      <div class="section-heading"><span class="step">01</span><h2>Shared task</h2><span id="spec-badge" class="subtle">The same starting point for selected harnesses</span><button class="text-button hidden" id="cancel-all">Cancel comparison</button></div>
+      <div id="conversation"></div>
+      <form id="task-form">
+        <div id="follow-up-banner" class="hidden"></div>
+        <textarea id="prompt" placeholder="Describe what you want to build or fix…" rows="3" required></textarea>
+        <fieldset id="harness-selection" class="harness-selection">
+          <legend>Coding harnesses</legend>
+          <p id="harness-selection-help">Only harnesses switched ON receive this prompt and start coding.</p>
+          <div id="harness-toggles" class="harness-toggles"></div>
+          <p id="harness-selection-status" role="status" aria-live="polite">Keep at least one coding harness ON.</p>
+          <p id="harness-selection-availability" class="notice hidden" role="status"></p>
+        </fieldset>
+        <div id="model-options" class="model-options"><div class="model-heading"><span>Models and effort for this task</span><button id="refresh-models" type="button" class="text-button">Refresh models ↻</button></div><div id="model-selectors" class="model-selectors"></div><p id="model-status" class="subtle" role="status">Loading supported models…</p></div>
+        <div id="new-judge-slot"></div>
+        <fieldset id="test-coverage-options" class="test-coverage-options">
+          <legend>Test coverage</legend>
+          <div id="test-coverage-choices" class="test-coverage-grid"></div>
+          <p class="subtle">The same suite evaluates the selected harnesses. You review the proposed tests before they are developed.</p>
+          <p id="test-coverage-status" class="notice hidden" role="status"></p>
+        </fieldset>
+        <p id="follow-up-block-reason" class="notice hidden" role="alert"></p>
+        <div class="composer-bottom"><div class="repo-picker"><select id="project-mode" aria-label="Project type"><option value="empty">◇ Empty project</option><option value="repository">⌘ Project folder</option></select><div id="repository-controls" class="repository-controls hidden"><input id="repository" placeholder="/absolute/path/to/project" aria-label="Project folder path"><button id="browse-project" type="button" class="secondary">Browse…</button></div></div><button type="submit" class="primary" id="submit-task">Start comparison <span>↗</span></button></div>
+        <details id="plan-options"><summary>Acceptance criteria &amp; validation plan <span>optional JSON</span></summary><p>A configured Strands model can derive a plan. You can provide independent acceptance tests and criteria here before development. Supplied plans keep all their explicit checks; the coverage choice applies to generated proposals.</p><textarea id="validation-plan" rows="5" placeholder='{"criteria": […], "checks": […], "acceptance_files": {…}}'></textarea></details>
+      </form>
+    </section>
+    <section id="questions"></section>
+    <section class="runs-section"><div class="section-heading"><span class="step">02</span><h2>Parallel development</h2><span class="subtle" id="run-subtitle">Isolated workspaces · native agent loops</span><span class="live-label" id="stream-label">● LIVE</span></div><div id="panels" class="panels"></div></section>
+    <section id="artifact-readiness" class="artifact-readiness hidden" aria-label="S3 artifact readiness"></section>
+    <section id="test-review" class="test-review-section" aria-label="Human test review"></section>
+    <section class="comparison-section"><div class="section-heading"><span class="step">04</span><h2>Independent comparison</h2><span class="subtle">Strands Evals · evidence before scores</span></div>
+      <div id="comparison-judge-slot"><div id="judge-controls" class="judge-controls">
+        <div class="judge-field"><label for="judge-model">Judge model · US Bedrock inference profile</label><select id="judge-model" aria-describedby="judge-model-status judge-scores-source"><option value="">Loading US inference profiles…</option></select></div>
+        <div id="planning-field" class="judge-field hidden"><label for="planning-model">Planning model · for test proposals</label><select id="planning-model"><option value="">Loading…</option></select></div>
+        <button id="refresh-judge-models" type="button" class="secondary">Refresh judge models ↻</button>
+        <button id="judge-reevaluate" type="button" class="secondary hidden">Re-score with selected judge</button>
+        <p id="judge-model-status" role="status">Loading US inference profiles…</p>
+        <p id="judge-scores-source"></p>
+      </div></div>
+      <div class="table-scroll"><table><thead><tr><th>Harness / model</th><th>Task</th><th>Status</th><th>Accuracy</th><th>Relevance</th><th>Tests</th><th>Overall</th><th>Test outcomes</th><th>Verification gaps</th><th>Total tokens</th><th>Usage</th><th>Active</th><th>User wait</th><th>Evaluation</th><th>Total elapsed</th></tr></thead><tbody id="comparison-table"></tbody></table></div><div id="harness-recommendation" class="harness-recommendation" aria-live="polite"></div><div id="artifact-storage" class="notice hidden" aria-live="polite"></div></section>
+    <footer><span class="tiny-logo">M↗</span>multi-coding-harness-compare · Native harnesses. Independent verification.<span>Tokens and duration never compensate for incorrect code.</span></footer>
+    </div>
+  </main>
+  <dialog id="review-dialog"><div class="dialog-head"><h2 id="review-title">Implementation</h2><button class="close-dialog" aria-label="Close">×</button></div><div id="review-content"></div></dialog>
+  <dialog id="settings-dialog"><div class="dialog-head"><h2>Runtime configuration</h2><button class="close-dialog" aria-label="Close">×</button></div><p>Select the judge under Independent comparison; no restart is needed. Coding and judge model selections are saved with each comparison. Environment values (credentials, AWS region, default models) live in <code>deploy.properties</code>. Behaviour settings (limits, project roots, credential templates) live in <code>config.toml</code> and require a restart after editing.</p><pre id="settings-content"></pre></dialog>
+  <dialog id="folder-dialog" aria-labelledby="folder-title"><div class="dialog-head"><h2 id="folder-title">Choose project folder</h2><button class="close-dialog" aria-label="Close folder picker">×</button></div><label class="folder-root-label" for="folder-root">Project location</label><select id="folder-root"></select><div class="folder-location"><button type="button" id="folder-up" class="secondary" aria-label="Parent folder">↑ Up</button><code id="folder-path"></code></div><p id="folder-error" class="notice hidden" role="alert"></p><div id="folder-list" aria-label="Project folders"></div><p class="subtle">Generated code is saved under <code>claude/</code>, <code>codex/</code>, and <code>kiro/</code> in your selected project. Project locations are configured in <code>repository_roots</code> in <code>config.toml</code>.</p><div class="folder-actions"><button type="button" class="secondary close-dialog">Cancel</button><button type="button" id="select-folder" class="primary" disabled>Select this folder</button></div></dialog>
+  <dialog id="attempt-dialog"><div class="dialog-head"><h2>Attempt record</h2><button class="close-dialog" aria-label="Close">×</button></div><div id="attempt-record-content"></div></dialog>
+  <div id="toast" role="status" class="hidden"></div>
+</body>
+</html>

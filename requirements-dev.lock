@@ -1,0 +1,5 @@
+# Test-only dependencies for tests/, resolved against requirements.lock, 2026-10-16. Python 3.12.
+# bootstrap.sh installs both files; the application itself never imports these.
+iniconfig==2.3.0
+pluggy==1.6.0
+pytest==9.1.1

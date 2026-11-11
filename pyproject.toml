@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "multi-coding-harness-compare"
+version = "0.1.0"
+description = "Concurrent native coding harnesses with independent Strands evaluation"
+requires-python = ">=3.12"
+dependencies = [
+  "boto3==1.43.92",
+  "fastapi==0.116.1",
+  "uvicorn==0.35.0",
+  "strands-agents-evals==1.2.0",
+  "strands-agents==1.55.1",
+  "claude-agent-sdk==0.2.152",
+  "mcp==1.26.0",
+  "httpx==0.28.1",
+  "defusedxml==0.7.1",
+]
+
+[project.scripts]
+multi-coding-harness-compare = "arena.cli:main"
+codecouncil = "arena.cli:main"
+arena = "arena.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["arena", "codecouncil", "harness_image"]

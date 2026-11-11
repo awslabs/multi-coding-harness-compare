@@ -1,0 +1,121 @@
+# `multi-coding-harness-compare setup` renders this file into config.toml. Editing it by hand works too.
+#
+# This file holds behaviour: limits, timeouts, harness options. Everything that changes
+# between users, machines and AWS accounts — AWS profile and region, S3 URIs, IAM and
+# AgentCore names, models, local paths, port — lives in deploy.properties beside it
+# (copy deploy.properties.example). Each property fills the fields it names there, and
+# any string here may reference one as "${KEY}". A literal set here wins for its field;
+# `multi-coding-harness-compare doctor` lists every value's source and each such override.
+#
+# Required: S3 access (ARTIFACT_S3_URI) is checked by `multi-coding-harness-compare doctor`,
+# and no comparison can finish without it.
+# Explicit non-application artifact paths, relative to the parent of data_dir.
+artifact_paths = []
+# RUNTIME in deploy.properties selects where harnesses run: native (macOS Seatbelt here) or
+# agentcore (Bedrock AgentCore microVMs).
+host = "127.0.0.1"
+active_seconds = 1800
+setup_seconds = 180
+check_seconds = 180
+max_turns = 80
+memory = "2g"
+pids = 256
+max_parallel_comparisons = 10 # each comparison still runs all three harnesses concurrently
+native_port_start = 20000 # eight distinct TCP loopback ports allocated per run
+harness_config_size_cap_mb = 50 # maximum MB of non-secret harness config copied from defaults
+native_read_roots = [] # explicit read-only directories for extra trusted tool installations
+# Leaving JUDGE_MODEL unset is a working configuration, but a degraded one: relevance
+# scoring and acceptance-test generation are both unavailable, plans fall back to a
+# deterministic rubric reporting "Independent acceptance tests have not been generated",
+# and scores stay incomplete. `multi-coding-harness-compare doctor` reports this as a named limitation.
+judge_seconds = 300 # Deadline per scoring attempt, including the Bedrock response.
+judge_max_attempts = 2 # Retry timeouts and transient provider/network failures only.
+# PLANNING_MODEL optionally sets an independent planner; otherwise planning uses the judge.
+planning_effort = "highest" # highest level the planning model supports — max for current Claude models; or pin a level; omit for non-Claude planners.
+planning_max_tokens = 100000 # Output ceiling per planning response; one bounded continuation is allowed.
+# Acceptance planning has no time limit: it runs until the planner answers, hits that
+# output ceiling, or the connection stalls. There is no planning_seconds setting.
+
+# ── Amazon Bedrock AgentCore Runtime backend ────────────────────────────────
+# This whole section is inert while runtime = "native" above. Switch with
+#   multi-coding-harness-compare setup --runtime=agentcore [--transfer-bucket=NAME] [--deploy]
+# which also provisions the three runtime resources when --deploy is passed, or
+# prints the exact `multi-coding-harness-compare agentcore-deploy` and `agentcore-probe` commands to
+# run next when it is not. Harnesses are packaged as deployment zips and uploaded
+# directly to S3; no Docker or ECR is involved.
+#
+# Claude and Codex reach Bedrock from inside the microVM through this runtime's
+# execution role: no host credential is copied and no API key is forwarded. Kiro has
+# no execution-role path and needs its own login — see [harnesses.kiro] below.
+# Region, profile, transfer URI, execution role and runtime names come from
+# deploy.properties (AWS_REGION, AWS_PROFILE, AGENTCORE_*).
+[agentcore]
+workspace_mount = "/mnt/workspace"      # sessionStorage NFS mount inside the microVM (1.07 GB)
+job_root = "/var/tmp/codecouncil"       # per-run path on the writable overlay (10.4 GB).
+                                        # The command user is unprivileged, so /, /opt and
+                                        # /var/task are read-only; must be under /tmp,
+                                        # /var/tmp or /home. Not /tmp: Codex refuses to
+                                        # create PATH alias helpers under a temporary dir.
+                                        # Verify with agentcore-probe.
+cache_dir = "codecouncil-cache"         # durable tools cache, relative to workspace_mount.
+                                        # Survives a cold microVM; reset after 14 days
+                                        # without an invoke or on a runtime version update.
+                                        # Never put SQLite there — the mount has no locking.
+idle_session_timeout = 900              # seconds before an idle session is stopped
+max_lifetime = 28800                    # hard ceiling on a session's total lifetime
+# command_timeout = 3600                # InvokeAgentRuntimeCommand timeout (1..3600)
+control_poll_seconds = 0.5              # how often the host mirrors control files
+python_runtime = "PYTHON_3_12"          # codeConfiguration runtime identifier
+entry_point = ["main.py"]               # codeConfiguration entryPoint
+session_activation = true               # invoke the runtime once before first command
+
+# Runtime ARNs are discovered from the account by canonical name
+# (<AGENTCORE_RUNTIME_NAME_PREFIX>_<harness>), so a new workstation needs no ARNs here and
+# must not re-deploy to find them. Pin one only to override that discovery:
+# [agentcore.runtimes.claude]
+# arn = "arn:aws:bedrock-agentcore:${AWS_REGION}:${AWS_ACCOUNT_ID}:runtime/codecouncil_claude-SUFFIX"
+# ────────────────────────────────────────────────────────────────────────────
+
+# Without home_template, each harness's non-secret configuration is read from the
+# directory its own CLI uses on this operating system — $CLAUDE_CONFIG_DIR or ~/.claude,
+# $CODEX_HOME or ~/.codex, ~/.local/share/kiro-cli — so no absolute paths are needed to
+# move this checkout to another workstation. A login is never copied from there unless
+# it is named in refresh_files below. `multi-coding-harness-compare doctor` prints what each harness will
+# actually use and which secrets it is withholding.
+
+# Per-harness model, CLI path and HOME template come from deploy.properties
+# (CLAUDE_MODEL, CODEX_CLI_PATH, KIRO_HOME_TEMPLATE, ...).
+# So does auto_approve: AUTO_APPROVE in deploy.properties (default false; true recommended)
+# decides who answers each harness's permission prompts. See README, Permission prompts.
+
+[harnesses.claude]
+# Native macOS: reuse the installed claude executable, provider config and helpers.
+# inherit_host_setup = true
+env = ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]
+# Needed for the native runtime, where there is no execution role to fall back on.
+# Unnecessary under runtime = "agentcore": Claude uses the AgentCore execution role.
+refresh_files = [".claude/.credentials.json"]
+
+[harnesses.codex]
+# Native macOS: reuse the installed codex executable and provider configuration.
+# inherit_host_setup = true
+env = ["OPENAI_API_KEY"]
+# Needed for the native runtime only. Under runtime = "agentcore" Codex authenticates
+# through the AgentCore execution role, and only ~/.codex/config.toml is copied in —
+# make sure that file has no `profile` key, because the microVM has no ~/.aws.
+refresh_files = [".codex/auth.json"]
+
+# With Codex's existing Amazon Bedrock setup, route particular models to the
+# region where they are available. Others keep the installed CLI's region.
+# [harnesses.codex.model_regions]
+# "${CODEX_MODEL}" = "${AWS_REGION}"
+
+[harnesses.kiro]
+env = []
+# Kiro has no execution-role path on any runtime: its own login is the only credential
+# it can use, and it lives in a SQLite database rather than a config file. KIRO_AUTH in
+# deploy.properties chooses: copy-host-login copies this workstation's login into each run's
+# private HOME (refresh_files = [".local/share/kiro-cli/data.sqlite3"]); login-in-home copies
+# nothing — run `kiro-cli login` with HOME set to a dedicated directory and set
+# KIRO_HOME_TEMPLATE to it.
+# agent = "YOUR_CONFIGURED_AGENT"

@@ -1,0 +1,40 @@
+# Python / virtualenv
+.venv/
+.deploy-venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local configuration: absolute paths, AWS profile names, provider selection.
+# Copy config.example.toml to config.toml and edit it. Anchored: the example Codex
+# template under examples/ is also named config.toml and is shipped.
+/config.toml
+# Per-machine deployment values (AWS profile, region, S3 URIs, IAM/AgentCore names,
+# models, local paths). Copy deploy.properties.example to deploy.properties.
+deploy.properties
+deploy.properties.backup
+.env
+
+# Runtime data directory: SQLite store, run workspaces, session records,
+# credential templates, access token, service logs.
+.arena/
+
+# Comparison-specific project folders. These are the repositories a comparison
+# runs against, plus the candidate output each harness produced; they are the
+# subject of a run, never part of the application.
+prj*/
+test_prj*/
+test_ptj*/
+demo-output/
+examples/test_prj*/
+examples/weather-*validation/
+
+# Build and log noise
+build.log
+*.log
+
+# macOS
+.DS_Store
+
+# bootstrap.sh stage reports and logs
+.bootstrap/
