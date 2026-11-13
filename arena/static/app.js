@@ -1,3 +1,5 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 const $ = (id) => document.getElementById(id);
 const names = {claude: "Claude Code", codex: "Codex", kiro: "Kiro"};
 const icons = {claude: "✳", codex: "⌘", kiro: "◈"};
