@@ -101,9 +101,9 @@ def _fake_client(stream_events, *, activation_response=None, s3_get_body=None,
         **(runtime_info or {}),
     }
     ctrl_client.list_agent_runtimes.return_value = {
-        "agentRuntimes": [{"agentRuntimeName": "codecouncil_claude",
-                           "agentRuntimeId": "codecouncil_claude-fake",
-                           "agentRuntimeArn": "arn:aws:bedrock-agentcore:us-east-1:123:runtime/codecouncil_claude-fake"}]
+        "agentRuntimes": [{"agentRuntimeName": "mchc_claude",
+                           "agentRuntimeId": "mchc_claude-fake",
+                           "agentRuntimeArn": "arn:aws:bedrock-agentcore:us-east-1:123:runtime/mchc_claude-fake"}]
     }
 
     s3_client = Mock()
@@ -174,14 +174,14 @@ class ConfigValidationTests(unittest.TestCase):
         # Commands run as an unprivileged user, so the image roots are read-only. A
         # job_root there used to fail at mkdir seconds into every run, in all harnesses
         # at once, reported only as "Native process exited 1".
-        for bad in ("/opt/codecouncil", "/codecouncil", "/var/task/job", "/usr/local/cc"):
+        for bad in ("/opt/mchc", "/mchc", "/var/task/job", "/usr/local/cc"):
             with self.subTest(job_root=bad):
                 with self.assertRaisesRegex(Exception, "job_root"):
                     Config(runtime="agentcore",
                            agentcore=AgentCoreConfig(transfer_s3_uri="s3://b/p", job_root=bad))
 
     def test_agentcore_job_root_accepts_the_writable_overlay(self):
-        for good in ("/tmp/codecouncil", "/var/tmp/codecouncil", "/home/agent/jobs"):
+        for good in ("/tmp/mchc", "/var/tmp/mchc", "/home/agent/jobs"):
             with self.subTest(job_root=good):
                 c = Config(runtime="agentcore",
                            agentcore=AgentCoreConfig(transfer_s3_uri="s3://b/p", job_root=good))
@@ -197,14 +197,14 @@ class ConfigValidationTests(unittest.TestCase):
 
     def test_cache_root_sits_on_the_session_storage_mount(self):
         cfg = AgentCoreConfig(transfer_s3_uri="s3://b/p", workspace_mount="/mnt/workspace",
-                              cache_dir="codecouncil-cache")
-        self.assertEqual(cfg.cache_root, "/mnt/workspace/codecouncil-cache")
+                              cache_dir="mchc-cache")
+        self.assertEqual(cfg.cache_root, "/mnt/workspace/mchc-cache")
 
     def test_session_epoch_zero_keeps_the_original_identifier(self):
         # A run already holding a warm session must not be moved off it by an upgrade.
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            legacy = "codecouncil-run-abc-" + __import__("hashlib").sha256(
+            legacy = "mchc-run-abc-" + __import__("hashlib").sha256(
                 ("run-abc" + str(root)).encode()).hexdigest()[:32]
             self.assertEqual(_session_id("run-abc", root, 0), legacy)
 
@@ -419,14 +419,14 @@ class CodecTests(unittest.TestCase):
             with patch.dict(os.environ, cmd_env), patch("sys.stdout", out):
                 exec(src, {"__builtins__": __builtins__})  # noqa: S102
             line = next(l for l in out.getvalue().splitlines()
-                        if l.startswith("CODECOUNCIL_PROBE "))
-            report = json.loads(line[len("CODECOUNCIL_PROBE "):])
+                        if l.startswith("MCHC_PROBE "))
+            report = json.loads(line[len("MCHC_PROBE "):])
             self.assertIn("uid", report)
             first = report["paths"][0]
             self.assertTrue(first["write"])
             self.assertTrue(first["sqlite"])
             # The scratch directory must not be left behind.
-            self.assertFalse((Path(td) / ".codecouncil-probe").exists())
+            self.assertFalse((Path(td) / ".mchc-probe").exists())
 
     def test_build_command_payload_roundtrips(self):
         payload = {"bucket": "b", "key": "k", "jobdir": "/opt/cc/r", "home": "/mnt/h",
@@ -498,7 +498,7 @@ class RemoteProcessTests(unittest.IsolatedAsyncioTestCase):
     async def test_control_envelope_stripped_from_stdout(self):
         with tempfile.TemporaryDirectory() as td:
             rp = self._make(td)
-            ctrl = json.dumps({"type": "__codecouncil", "data": {"kind": "started", "pid": 42}})
+            ctrl = json.dumps({"type": "__mchc", "data": {"kind": "started", "pid": 42}})
             rp._feed_stdout_chunk(ctrl.encode() + b"\n")
             rp._feed_stdout_chunk(b"harness line\n")
             rp._eof()
@@ -512,7 +512,7 @@ class RemoteProcessTests(unittest.IsolatedAsyncioTestCase):
         # reach the worker, which turns every stdout line into a stored event.
         with tempfile.TemporaryDirectory() as td:
             rp = self._make(td)
-            beat = json.dumps({"type": "__codecouncil",
+            beat = json.dumps({"type": "__mchc",
                                "data": {"kind": "heartbeat", "elapsed": 120}})
             rp._feed_stdout_chunk(beat.encode() + b"\n")
             rp._feed_stdout_chunk(b"harness line\n")
@@ -524,7 +524,7 @@ class RemoteProcessTests(unittest.IsolatedAsyncioTestCase):
     async def test_bridge_request_written_to_file(self):
         with tempfile.TemporaryDirectory() as td:
             rp = self._make(td)
-            ctrl = json.dumps({"type": "__codecouncil",
+            ctrl = json.dumps({"type": "__mchc",
                                 "data": {"kind": "bridge_request",
                                          "name": "ready.json",
                                          "content": {"type": "ready"}}})
@@ -537,7 +537,7 @@ class RemoteProcessTests(unittest.IsolatedAsyncioTestCase):
     async def test_result_envelope_captured(self):
         with tempfile.TemporaryDirectory() as td:
             rp = self._make(td)
-            ctrl = json.dumps({"type": "__codecouncil",
+            ctrl = json.dumps({"type": "__mchc",
                                 "data": {"kind": "result",
                                          "bucket": "b", "key": "k"}})
             rp._feed_stdout_chunk(ctrl.encode() + b"\n")
@@ -547,7 +547,7 @@ class RemoteProcessTests(unittest.IsolatedAsyncioTestCase):
     async def test_returncode_from_exit_envelope(self):
         with tempfile.TemporaryDirectory() as td:
             rp = self._make(td)
-            ctrl = json.dumps({"type": "__codecouncil",
+            ctrl = json.dumps({"type": "__mchc",
                                 "data": {"kind": "exit", "code": 7}})
             rp._feed_stdout_chunk(ctrl.encode() + b"\n")
             rp._eof()
@@ -723,15 +723,15 @@ class FullTurnSimulationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_full_turn_stdout_strips_control_and_bridge_request_written(self):
         # A realistic event stream: start, split harness lines, bridge_request, result, stop
-        bridge_req = json.dumps({"type": "__codecouncil",
+        bridge_req = json.dumps({"type": "__mchc",
                                   "data": {"kind": "bridge_request",
                                            "name": "ask.json",
                                            "content": {"type": "ask", "q": "hello"}}})
-        result_evt = json.dumps({"type": "__codecouncil",
+        result_evt = json.dumps({"type": "__mchc",
                                   "data": {"kind": "result",
                                            "bucket": "test-bucket",
                                            "key": "code/ai-coding-assistant-agcore-runtime/sessions/sid/t1/result.tar.gz"}})
-        exit_evt = json.dumps({"type": "__codecouncil",
+        exit_evt = json.dumps({"type": "__mchc",
                                 "data": {"kind": "exit", "code": 0}})
         harness_line = b'{"type":"session","data":{"session_id":"s1"}}\n'
 
@@ -969,12 +969,12 @@ class SupervisorTests(unittest.TestCase):
         import sys
         code = "pass"
         rc, out, _err, _ = self._run_supervisor([sys.executable, "-c", code])
-        lines = [l for l in out.splitlines() if '"__codecouncil"' in l or '"type":"__codecouncil"' in l]
+        lines = [l for l in out.splitlines() if '"__mchc"' in l or '"type":"__mchc"' in l]
         kinds = []
         for l in out.splitlines():
             try:
                 m = json.loads(l)
-                if isinstance(m, dict) and m.get("type") == "__codecouncil":
+                if isinstance(m, dict) and m.get("type") == "__mchc":
                     kinds.append(m["data"]["kind"])
             except Exception:
                 pass
@@ -995,7 +995,7 @@ class SupervisorTests(unittest.TestCase):
         for l in out.splitlines():
             try:
                 m = json.loads(l)
-                if isinstance(m, dict) and m.get("type") == "__codecouncil":
+                if isinstance(m, dict) and m.get("type") == "__mchc":
                     kinds.append(m["data"]["kind"])
             except Exception:
                 pass

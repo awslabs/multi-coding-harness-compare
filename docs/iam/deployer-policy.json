@@ -14,13 +14,13 @@
         "iam:DeleteRolePolicy",
         "iam:DeleteRole"
       ],
-      "Resource": "arn:aws:iam::123456789012:role/CodeCouncilBedrockAgentCoreRuntimeRole"
+      "Resource": "arn:aws:iam::123456789012:role/MchcBedrockAgentCoreRuntimeRole"
     },
     {
       "Sid": "IAMPassRole",
       "Effect": "Allow",
       "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::123456789012:role/CodeCouncilBedrockAgentCoreRuntimeRole",
+      "Resource": "arn:aws:iam::123456789012:role/MchcBedrockAgentCoreRuntimeRole",
       "Condition": {
         "StringEquals": {
           "iam:PassedToService": "bedrock-agentcore.amazonaws.com"
@@ -51,13 +51,13 @@
         "bedrock-agentcore:ListAgentRuntimeEndpoints",
         "bedrock-agentcore:DeleteAgentRuntimeEndpoint"
       ],
-      "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/codecouncil*"
+      "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/mchc*"
     },
     {
       "Sid": "WorkloadIdentityManage",
       "Effect": "Allow",
       "Action": "bedrock-agentcore:DeleteWorkloadIdentity",
-      "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:workload-identity-directory/default/workload-identity/codecouncil*"
+      "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:workload-identity-directory/default/workload-identity/mchc*"
     },
     {
       "Sid": "S3Objects",
@@ -96,7 +96,7 @@
       "Sid": "LogGroupsCleanup",
       "Effect": "Allow",
       "Action": "logs:DeleteLogGroup",
-      "Resource": "arn:aws:logs:us-east-1:123456789012:log-group:/aws/bedrock-agentcore/runtimes/codecouncil*"
+      "Resource": "arn:aws:logs:us-east-1:123456789012:log-group:/aws/bedrock-agentcore/runtimes/mchc*"
     }
   ]
 }

@@ -8,7 +8,7 @@ Covers:
   - arena/agentcore_sandbox.py: _resolve_runtime path 3 uses the helper (shared and per-user)
   - arena/preflight.py: agentcore check uses the helper and fails clearly without USER_NAMESPACE
   - arena/cli.py: configuration_drift uses the helper for per-user names
-  - Shared mode: existing names codecouncil_{harness} are preserved (live install safety)
+  - Shared mode: existing names mchc_{harness} are preserved (live install safety)
 """
 import asyncio
 import io
@@ -26,15 +26,15 @@ from harness_image.iam import runtime_name
 
 class RuntimeNameSharedTests(unittest.TestCase):
     def test_shared_produces_prefix_harness(self):
-        self.assertEqual(runtime_name("codecouncil", "claude", None), "codecouncil_claude")
-        self.assertEqual(runtime_name("codecouncil", "codex", None), "codecouncil_codex")
-        self.assertEqual(runtime_name("codecouncil", "kiro", None), "codecouncil_kiro")
+        self.assertEqual(runtime_name("mchc", "claude", None), "mchc_claude")
+        self.assertEqual(runtime_name("mchc", "codex", None), "mchc_codex")
+        self.assertEqual(runtime_name("mchc", "kiro", None), "mchc_kiro")
 
     def test_shared_preserves_existing_live_names(self):
         # The live installation has exactly these three names; they must never change.
         for harness in ("claude", "codex", "kiro"):
-            self.assertEqual(runtime_name("codecouncil", harness, None),
-                             f"codecouncil_{harness}")
+            self.assertEqual(runtime_name("mchc", harness, None),
+                             f"mchc_{harness}")
 
     def test_shared_no_trailing_underscore(self):
         name = runtime_name("pfx", "h", None)
@@ -43,16 +43,16 @@ class RuntimeNameSharedTests(unittest.TestCase):
 
 class RuntimeNamePerUserTests(unittest.TestCase):
     def test_per_user_appends_namespace(self):
-        self.assertEqual(runtime_name("codecouncil", "claude", "alice"),
-                         "codecouncil_claude_alice")
+        self.assertEqual(runtime_name("mchc", "claude", "alice"),
+                         "mchc_claude_alice")
 
     def test_per_user_maps_hyphens_to_underscores(self):
-        self.assertEqual(runtime_name("codecouncil", "claude", "my-team"),
-                         "codecouncil_claude_my_team")
+        self.assertEqual(runtime_name("mchc", "claude", "my-team"),
+                         "mchc_claude_my_team")
 
     def test_per_user_allows_underscores_in_namespace(self):
-        self.assertEqual(runtime_name("codecouncil", "claude", "my_team"),
-                         "codecouncil_claude_my_team")
+        self.assertEqual(runtime_name("mchc", "claude", "my_team"),
+                         "mchc_claude_my_team")
 
 
 class RuntimeNameValidationTests(unittest.TestCase):
@@ -64,7 +64,7 @@ class RuntimeNameValidationTests(unittest.TestCase):
         # 48 chars is the limit; construct a prefix+harness that exceeds it
         long_ns = "x" * 40
         with self.assertRaises(ValueError) as cm:
-            runtime_name("codecouncil", "claude", long_ns)
+            runtime_name("mchc", "claude", long_ns)
         self.assertIn("48", str(cm.exception))
 
     def test_exact_48_chars_is_valid(self):
@@ -123,7 +123,7 @@ class EnsureRuntimeNamingTests(unittest.TestCase):
         ctrl = self._make_control()
         _ensure_runtime("claude", cfg, "bundle/key", "arn:role", {}, ctrl)
         call_kwargs = ctrl.create_agent_runtime.call_args.kwargs
-        self.assertEqual(call_kwargs["agentRuntimeName"], "codecouncil_claude")
+        self.assertEqual(call_kwargs["agentRuntimeName"], "mchc_claude")
 
     def test_per_user_creates_with_namespaced_name(self):
         from harness_image.deploy import _ensure_runtime
@@ -131,7 +131,7 @@ class EnsureRuntimeNamingTests(unittest.TestCase):
         ctrl = self._make_control()
         _ensure_runtime("claude", cfg, "bundle/key", "arn:role", {}, ctrl)
         call_kwargs = ctrl.create_agent_runtime.call_args.kwargs
-        self.assertEqual(call_kwargs["agentRuntimeName"], "codecouncil_claude_alice")
+        self.assertEqual(call_kwargs["agentRuntimeName"], "mchc_claude_alice")
 
     def test_per_user_with_hyphen_namespace_sanitises_to_underscore(self):
         from harness_image.deploy import _ensure_runtime
@@ -139,12 +139,12 @@ class EnsureRuntimeNamingTests(unittest.TestCase):
         ctrl = self._make_control()
         _ensure_runtime("claude", cfg, "bundle/key", "arn:role", {}, ctrl)
         call_kwargs = ctrl.create_agent_runtime.call_args.kwargs
-        self.assertEqual(call_kwargs["agentRuntimeName"], "codecouncil_claude_my_team")
+        self.assertEqual(call_kwargs["agentRuntimeName"], "mchc_claude_my_team")
 
     def test_shared_finds_existing_by_correct_name(self):
         from harness_image.deploy import _ensure_runtime
         cfg = self._make_cfg()
-        ctrl = self._make_control(existing_name="codecouncil_claude")
+        ctrl = self._make_control(existing_name="mchc_claude")
         _ensure_runtime("claude", cfg, "bundle/key", "arn:role", {}, ctrl)
         # Should update, not create
         ctrl.update_agent_runtime.assert_called_once()
@@ -153,7 +153,7 @@ class EnsureRuntimeNamingTests(unittest.TestCase):
     def test_per_user_finds_existing_by_namespaced_name(self):
         from harness_image.deploy import _ensure_runtime
         cfg = self._make_cfg(isolation="per-user", namespace="bob")
-        ctrl = self._make_control(existing_name="codecouncil_claude_bob")
+        ctrl = self._make_control(existing_name="mchc_claude_bob")
         _ensure_runtime("claude", cfg, "bundle/key", "arn:role", {}, ctrl)
         ctrl.update_agent_runtime.assert_called_once()
         ctrl.create_agent_runtime.assert_not_called()
@@ -163,12 +163,12 @@ class EnsureRuntimeNamingTests(unittest.TestCase):
         from harness_image.deploy import _ensure_runtime
         cfg = self._make_cfg(isolation="per-user", namespace="carol")
         # Only the shared name exists in the account
-        ctrl = self._make_control(existing_name="codecouncil_claude")
+        ctrl = self._make_control(existing_name="mchc_claude")
         _ensure_runtime("claude", cfg, "bundle/key", "arn:role", {}, ctrl)
         # Should create a new namespaced runtime, not update the shared one
         ctrl.create_agent_runtime.assert_called_once()
         created_name = ctrl.create_agent_runtime.call_args.kwargs["agentRuntimeName"]
-        self.assertEqual(created_name, "codecouncil_claude_carol")
+        self.assertEqual(created_name, "mchc_claude_carol")
 
 
 # ── agentcore_sandbox: _resolve_runtime path 3 uses runtime_name ─────────────
@@ -211,20 +211,20 @@ class AgentcoreSandboxDiscoveryTests(unittest.TestCase):
 
     def test_shared_finds_shared_name(self):
         config = self._make_config()
-        ctrl = self._make_ctrl("codecouncil_claude")
+        ctrl = self._make_ctrl("mchc_claude")
         arn, qualifier, info = self._run(config, ctrl)
         self.assertIn("arn:", arn)
 
     def test_per_user_finds_namespaced_name(self):
         config = self._make_config(isolation="per-user", namespace="alice")
-        ctrl = self._make_ctrl("codecouncil_claude_alice")
+        ctrl = self._make_ctrl("mchc_claude_alice")
         arn, qualifier, info = self._run(config, ctrl)
         self.assertIn("arn:", arn)
 
     def test_per_user_does_not_find_shared_name(self):
         """Per-user discovery must NOT accidentally adopt a shared runtime."""
         config = self._make_config(isolation="per-user", namespace="bob")
-        ctrl = self._make_ctrl("codecouncil_claude")  # only shared exists
+        ctrl = self._make_ctrl("mchc_claude")  # only shared exists
         with self.assertRaises(RuntimeError) as cm:
             self._run(config, ctrl)
         self.assertIn("No AgentCore runtime found", str(cm.exception))
@@ -232,7 +232,7 @@ class AgentcoreSandboxDiscoveryTests(unittest.TestCase):
     def test_shared_does_not_find_namespaced_name(self):
         """Shared discovery must NOT accidentally adopt a per-user runtime."""
         config = self._make_config()  # shared
-        ctrl = self._make_ctrl("codecouncil_claude_alice")  # only per-user exists
+        ctrl = self._make_ctrl("mchc_claude_alice")  # only per-user exists
         with self.assertRaises(RuntimeError) as cm:
             self._run(config, ctrl)
         self.assertIn("No AgentCore runtime found", str(cm.exception))
@@ -277,23 +277,23 @@ class PreflightAgentcoreNamingTests(unittest.TestCase):
 
     def test_shared_expects_three_plain_names(self):
         config = self._make_config()
-        session = self._make_session(["codecouncil_claude", "codecouncil_codex", "codecouncil_kiro"])
+        session = self._make_session(["mchc_claude", "mchc_codex", "mchc_kiro"])
         checks = self._run_agentcore_check(config, session)
         self.assertEqual(checks["agentcore-runtimes"]["status"], "pass")
 
     def test_shared_reports_missing_names(self):
         config = self._make_config()
-        session = self._make_session(["codecouncil_claude"])  # codex+kiro missing
+        session = self._make_session(["mchc_claude"])  # codex+kiro missing
         checks = self._run_agentcore_check(config, session)
         self.assertEqual(checks["agentcore-runtimes"]["status"], "fail")
-        self.assertIn("codecouncil_codex", checks["agentcore-runtimes"]["detail"])
+        self.assertIn("mchc_codex", checks["agentcore-runtimes"]["detail"])
 
     def test_per_user_expects_namespaced_names(self):
         config = self._make_config(isolation="per-user", namespace="alice")
         session = self._make_session([
-            "codecouncil_claude_alice",
-            "codecouncil_codex_alice",
-            "codecouncil_kiro_alice",
+            "mchc_claude_alice",
+            "mchc_codex_alice",
+            "mchc_kiro_alice",
         ])
         checks = self._run_agentcore_check(config, session)
         self.assertEqual(checks["agentcore-runtimes"]["status"], "pass")
@@ -301,7 +301,7 @@ class PreflightAgentcoreNamingTests(unittest.TestCase):
     def test_per_user_does_not_accept_shared_names(self):
         """Per-user preflight must NOT pass when only the shared runtimes exist."""
         config = self._make_config(isolation="per-user", namespace="alice")
-        session = self._make_session(["codecouncil_claude", "codecouncil_codex", "codecouncil_kiro"])
+        session = self._make_session(["mchc_claude", "mchc_codex", "mchc_kiro"])
         checks = self._run_agentcore_check(config, session)
         self.assertEqual(checks["agentcore-runtimes"]["status"], "fail")
         self.assertIn("_alice", checks["agentcore-runtimes"]["detail"])
@@ -321,9 +321,9 @@ class PreflightAgentcoreNamingTests(unittest.TestCase):
         config = self._make_config(isolation="per-user", namespace="my-team")
         # AgentCore names would have underscore, not hyphen
         session = self._make_session([
-            "codecouncil_claude_my_team",
-            "codecouncil_codex_my_team",
-            "codecouncil_kiro_my_team",
+            "mchc_claude_my_team",
+            "mchc_codex_my_team",
+            "mchc_kiro_my_team",
         ])
         checks = self._run_agentcore_check(config, session)
         self.assertEqual(checks["agentcore-runtimes"]["status"], "pass")
@@ -358,8 +358,8 @@ class CliDriftNamingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             records = {"claude": {
-                "arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/codecouncil_claude-x",
-                "id": "codecouncil_claude-x",
+                "arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/mchc_claude-x",
+                "id": "mchc_claude-x",
                 "bundle": "s3://test-bucket/test-prefix/bundle.zip",
             }}
             issues = self._run_drift(config, records, root)
@@ -370,8 +370,8 @@ class CliDriftNamingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             records = {"claude": {
-                "arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/codecouncil_claude_alice-x",
-                "id": "codecouncil_claude_alice-x",
+                "arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/mchc_claude_alice-x",
+                "id": "mchc_claude_alice-x",
                 "bundle": "s3://test-bucket/test-prefix/bundle.zip",
             }}
             issues = self._run_drift(config, records, root)
@@ -383,12 +383,12 @@ class CliDriftNamingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             records = {"claude": {
-                "arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/codecouncil_claude-x",
-                "id": "codecouncil_claude-x",  # shared name, not namespaced
+                "arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/mchc_claude-x",
+                "id": "mchc_claude-x",  # shared name, not namespaced
                 "bundle": "s3://test-bucket/test-prefix/bundle.zip",
             }}
             issues = self._run_drift(config, records, root)
-        self.assertTrue(any("codecouncil_claude-x" in i for i in issues),
+        self.assertTrue(any("mchc_claude-x" in i for i in issues),
                         f"Expected drift issue for shared-named runtime, got: {issues}")
 
 
@@ -401,12 +401,12 @@ class ProvisionReExportTests(unittest.TestCase):
 
     def test_shared_via_provision_shim(self):
         from arena.agentcore_provision import runtime_name as prov_runtime_name
-        self.assertEqual(prov_runtime_name("codecouncil", "claude", None), "codecouncil_claude")
+        self.assertEqual(prov_runtime_name("mchc", "claude", None), "mchc_claude")
 
     def test_per_user_via_provision_shim(self):
         from arena.agentcore_provision import runtime_name as prov_runtime_name
-        self.assertEqual(prov_runtime_name("codecouncil", "claude", "alice"),
-                         "codecouncil_claude_alice")
+        self.assertEqual(prov_runtime_name("mchc", "claude", "alice"),
+                         "mchc_claude_alice")
 
 
 if __name__ == "__main__":

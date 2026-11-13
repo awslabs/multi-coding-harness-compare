@@ -100,8 +100,8 @@ class ResolveTests(unittest.TestCase):
     def test_defaults_remain_when_nothing_sets_a_field(self):
         config, _ = self.resolve("", "")
         self.assertIsNone(config.artifact_s3_uri)
-        self.assertEqual(config.agentcore.execution_role_name, "CodeCouncilBedrockAgentCoreRuntimeRole")
-        self.assertEqual(config.agentcore.inline_policy_name, "CodeCouncilAgentCoreRuntime")
+        self.assertEqual(config.agentcore.execution_role_name, "MchcBedrockAgentCoreRuntimeRole")
+        self.assertEqual(config.agentcore.inline_policy_name, "MchcAgentCoreRuntime")
 
     def test_harness_values_keep_the_built_in_harness_defaults(self):
         config, _ = self.resolve("", "CLAUDE_MODEL = c1\n")
@@ -183,8 +183,8 @@ class DriftTests(unittest.TestCase):
 
     def test_cached_runtimes_from_another_region_account_prefix_or_bucket_are_flagged(self):
         from arena.cli import configuration_drift
-        record = {"arn": "arn:aws:bedrock-agentcore:us-east-1:111111111111:runtime/codecouncil_claude-X",
-                  "id": "codecouncil_claude-X", "bundle": "s3://old/xfer/bundles/claude/deployment_package.zip"}
+        record = {"arn": "arn:aws:bedrock-agentcore:us-east-1:111111111111:runtime/mchc_claude-X",
+                  "id": "mchc_claude-X", "bundle": "s3://old/xfer/bundles/claude/deployment_package.zip"}
         issues = configuration_drift(self.config({"claude": record}, region="eu-west-1",
                                                  runtime_name_prefix="team"),
                                      {"AWS_ACCOUNT_ID": "222222222222"})
@@ -194,8 +194,8 @@ class DriftTests(unittest.TestCase):
 
     def test_matching_records_and_the_native_runtime_report_nothing(self):
         from arena.cli import configuration_drift
-        record = {"arn": "arn:aws:bedrock-agentcore:us-east-1:111111111111:runtime/codecouncil_claude-X",
-                  "id": "codecouncil_claude-X", "bundle": "s3://b/xfer/bundles/claude/deployment_package.zip"}
+        record = {"arn": "arn:aws:bedrock-agentcore:us-east-1:111111111111:runtime/mchc_claude-X",
+                  "id": "mchc_claude-X", "bundle": "s3://b/xfer/bundles/claude/deployment_package.zip"}
         # Region must match the ARN region; set it explicitly since it no longer defaults to us-east-1.
         self.assertEqual(configuration_drift(self.config({"claude": record}, region="us-east-1"),
                                              {"AWS_ACCOUNT_ID": "111111111111"}), [])

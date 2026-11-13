@@ -313,9 +313,9 @@ class Native:
             writes.add(workspace)
         env = private_environment(home, temporary, workspace, bridge, cfg.env)
         # Expose the configured Codex provider to the adapter so it selects the right
-        # provider endpoint; CODECOUNCIL_CODEX_PROVIDER env var is the fallback in the adapter.
+        # provider endpoint; MCHC_CODEX_PROVIDER env var is the fallback in the adapter.
         if run["harness"] == "codex" and getattr(cfg, "provider", None):
-            env["CODECOUNCIL_CODEX_PROVIDER"] = cfg.provider
+            env["MCHC_CODEX_PROVIDER"] = cfg.provider
         host_setup = None
         if cfg.inherit_host_setup:
             from .host_setup import inherit_setup
@@ -488,7 +488,7 @@ class Native:
         env["PYTHONPATH"] = str(execution)
         env.update(PIP_NO_INDEX="1", PIP_FIND_LINKS=str(wheels), PIP_CONFIG_FILE=os.devnull,
                    PIP_DISABLE_PIP_VERSION_CHECK="1", PIP_NO_CACHE_DIR="1",
-                   CODECOUNCIL_VERIFICATION_CONTEXT=str(context))
+                   MCHC_VERIFICATION_CONTEXT=str(context))
         env.update(PORT=str(ports[0]), ARENA_PORTS=",".join(map(str, ports)))
         self.jobs[name] = {"policy": policy, "env": env, "cwd": execution, "known": {}}
         process = await self.launch(name, ["/bin/sh", "-c", command_text])

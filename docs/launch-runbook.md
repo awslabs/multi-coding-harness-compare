@@ -88,7 +88,7 @@ confirmed value with `--set` and re-run.
 
 | Key | Required pattern | Max length | Valid example | Common mistake |
 |---|---|---|---|---|
-| `AGENTCORE_RUNTIME_NAME_PREFIX` | `[A-Za-z][A-Za-z0-9_]*` — start with a letter; letters, digits, underscores only | 41 (so `<prefix>_claude` fits within 48) | `testoct21_codecouncil` | `testoct21-codecouncil` (hyphen not allowed) |
+| `AGENTCORE_RUNTIME_NAME_PREFIX` | `[A-Za-z][A-Za-z0-9_]*` — start with a letter; letters, digits, underscores only | 41 (so `<prefix>_claude` fits within 48) | `testoct21_mchc` | `testoct21-mchc` (hyphen not allowed) |
 | `AGENTCORE_EXECUTION_ROLE_NAME` | `[\w+=,.@-]{1,64}` — letters, digits, `+=,.@-` | 64 | `MyDeploymentRole` | — |
 | `AGENTCORE_INLINE_POLICY_NAME` | `[\w+=,.@-]{1,128}` — letters, digits, `+=,.@-` | 128 | `MyDeploymentPolicy` | — |
 | `USER_NAMESPACE` | `[a-z0-9][a-z0-9-]*` — lowercase letters, digits, hyphens; start with letter or digit | — | `alice` | uppercase letters or underscores |
@@ -105,7 +105,7 @@ As a single `./bootstrap.sh` call (continue from Step 3 after this):
 ```bash
 ./bootstrap.sh \
   --set SERVICE_PORT=8766 \
-  --set AGENTCORE_RUNTIME_NAME_PREFIX=testoct21_codecouncil \
+  --set AGENTCORE_RUNTIME_NAME_PREFIX=testoct21_mchc \
   --set AGENTCORE_EXECUTION_ROLE_NAME=TestOct21BedrockAgentCoreRole \
   --set AGENTCORE_INLINE_POLICY_NAME=TestOct21AgentCoreRuntime \
   --set ARTIFACT_S3_URI='s3://${S3_BUCKET}/output/testoct21/' \
@@ -116,7 +116,7 @@ Equivalent lines in `deploy.properties` (for people who prefer editing the file)
 
 ```
 SERVICE_PORT = 8766
-AGENTCORE_RUNTIME_NAME_PREFIX = testoct21_codecouncil
+AGENTCORE_RUNTIME_NAME_PREFIX = testoct21_mchc
 AGENTCORE_EXECUTION_ROLE_NAME = TestOct21BedrockAgentCoreRole
 AGENTCORE_INLINE_POLICY_NAME = TestOct21AgentCoreRuntime
 ARTIFACT_S3_URI = s3://${S3_BUCKET}/output/testoct21/

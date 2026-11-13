@@ -44,7 +44,7 @@ class InputsTests(unittest.TestCase):
         code, report = preflight.inputs(self.path, ANSWERS)
         self.assertEqual((code, report["missing"], report["created"]), (0, [], True))
         values = props.load(self.path).values
-        self.assertEqual(values["ARTIFACT_S3_URI"], "s3://bucket/output/codecouncil/")
+        self.assertEqual(values["ARTIFACT_S3_URI"], "s3://bucket/output/mchc/")
         self.assertEqual(values["CODEX_HOME_TEMPLATE"], "codex-home")
         self.assertEqual(preflight.inputs(self.path, [])[0], 0)   # re-running asks nothing
 
@@ -233,8 +233,8 @@ class PreflightTests(unittest.TestCase):
     def test_cached_runtimes_from_another_region_need_an_authorized_deploy(self):
         (self.root / "data").mkdir()
         (self.root / "data" / "agentcore-runtimes.json").write_text(json.dumps({"claude": {
-            "arn": "arn:aws:bedrock-agentcore:eu-west-1:111111111111:runtime/codecouncil_claude-x",
-            "id": "codecouncil_claude-x"}}))
+            "arn": "arn:aws:bedrock-agentcore:eu-west-1:111111111111:runtime/mchc_claude-x",
+            "id": "mchc_claude-x"}}))
         report, checks = self.run_preflight()
         self.assertEqual((checks["agentcore-drift"]["status"], checks["agentcore-drift"]["gate"]), ("fail", "deploy"))
         self.assertIn("eu-west-1", checks["agentcore-drift"]["detail"])
@@ -244,10 +244,10 @@ class PreflightTests(unittest.TestCase):
     def test_cached_runtimes_from_the_previous_account_are_caught_without_aws_account_id(self):
         (self.root / "data").mkdir()
         (self.root / "data" / "agentcore-runtimes.json").write_text(json.dumps({"codex": {
-            "arn": "arn:aws:bedrock-agentcore:us-east-1:999999999999:runtime/codecouncil_codex-x"}}))
+            "arn": "arn:aws:bedrock-agentcore:us-east-1:999999999999:runtime/mchc_codex-x"}}))
         session = FakeSession(account="111111111111", profiles=["us.anthropic.claude-sonnet-4-6",
-                              "us.anthropic.claude-opus-5"], runtimes=["codecouncil_claude", "codecouncil_codex",
-                                                                       "codecouncil_kiro"])
+                              "us.anthropic.claude-opus-5"], runtimes=["mchc_claude", "mchc_codex",
+                                                                       "mchc_kiro"])
         report, checks = self.run_preflight(offline=False, session=session)
         self.assertEqual(checks["agentcore-drift"]["status"], "fail")
         self.assertIn("999999999999", checks["agentcore-drift"]["detail"])
@@ -256,7 +256,7 @@ class PreflightTests(unittest.TestCase):
 
     def test_aws_checks_make_only_read_only_calls_and_name_who_acts(self):
         from botocore.exceptions import ClientError
-        session = FakeSession(account="111111111111", runtimes=["codecouncil_claude"],
+        session = FakeSession(account="111111111111", runtimes=["mchc_claude"],
                               profiles=["us.anthropic.claude-sonnet-4-6"],
                               s3_error=ClientError({"Error": {"Code": "403", "Message": "Forbidden"}}, "HeadBucket"))
         report, checks = self.run_preflight(answers=[*ANSWERS, "AWS_ACCOUNT_ID=222222222222"],
@@ -267,7 +267,7 @@ class PreflightTests(unittest.TestCase):
                     "bedrock-model-judge": ("pass", "none"), "bedrock-model-planning": ("fail", "human"),
                     "agentcore-runtimes": ("fail", "deploy")}
         self.assertEqual({id: (checks[id]["status"], checks[id]["gate"]) for id in expected}, expected)
-        self.assertIn("codecouncil_codex", checks["agentcore-runtimes"]["detail"])
+        self.assertIn("mchc_codex", checks["agentcore-runtimes"]["detail"])
         self.assertTrue(report["needs_deploy"])
         self.assertEqual(report["gates"], ["deploy", "human"])
         # list_objects_v2 is added by the agentcore-secret-leftovers read-only check.

@@ -26,7 +26,7 @@ class ReadinessTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.cfg = Config(data_dir=str(Path(self.temp.name) / "data"),
-                          artifact_s3_uri="s3://test-bucket/output/codecouncil/")
+                          artifact_s3_uri="s3://test-bucket/output/mchc/")
         self.w = Worker(self.cfg)
         self.w.storage._client = self.s3 = FakeS3()
         self.s = self.w.store

@@ -3,12 +3,12 @@
 """Deterministic fixtures and instructions for independent generated tests."""
 from pathlib import Path
 
-OBSERVER_FILENAME = "_codecouncil_observe.py"
+OBSERVER_FILENAME = "_mchc_observe.py"
 
 CONSTRUCTOR_GUIDANCE = """
 For constructor-observation scenarios the application supplies the read-only helper
-/acceptance/_codecouncil_observe.py. Do not generate or replace this reserved file.
-Use `from _codecouncil_observe import observe_constructors`. The context manager
+/acceptance/_mchc_observe.py. Do not generate or replace this reserved file.
+Use `from _mchc_observe import observe_constructors`. The context manager
 records real Python constructor calls via sys.setprofile; it never patches SDK
 classes, __init__, or validation. It observes the CURRENT THREAD, not subprocesses.
 The returned mapping uses the actual classes as keys. Each entry is a list of
@@ -16,7 +16,7 @@ argument dicts (defaults included, **kwargs flattened, self omitted). Example:
 
     import boto3
     from strands.models import BedrockModel
-    from _codecouncil_observe import observe_constructors
+    from _mchc_observe import observe_constructors
     with observe_constructors(boto3.Session, BedrockModel) as calls:
         runpy.run_path("/workspace/weather_agent.py", run_name="__main__")
     assert calls[BedrockModel], "The public entry point must construct its model"

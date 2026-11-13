@@ -636,14 +636,14 @@ def print_policy(kind: str) -> None:
     region = "us-east-1"
     bucket = "my-bucket"
     prefix = "code/ai-coding-assistant"
-    agentcore_prefix = "codecouncil"
+    agentcore_prefix = "mchc"
     if kind == "execution":
         doc = execution_policy(account, region, bucket, prefix)
     elif kind == "deployer":
         # Pass the conventional default role name so the generated document shows
         # a specific ARN rather than the wildcard role/* fallback.
         doc = deployer_policy(account, region, bucket, prefix,
-                              role_name="CodeCouncilBedrockAgentCoreRuntimeRole",
+                              role_name="MchcBedrockAgentCoreRuntimeRole",
                               agentcore_prefix=agentcore_prefix)
     elif kind == "workstation":
         doc = workstation_policy(account, bucket, prefix,

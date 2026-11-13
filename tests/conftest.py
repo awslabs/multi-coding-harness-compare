@@ -24,8 +24,8 @@ import pytest
 
 _isolation = tempfile.TemporaryDirectory(prefix="mhc-test-config-")
 (Path(_isolation.name) / "deploy.properties").write_text("")
-os.environ["CODECOUNCIL_CONFIG"] = str(Path(_isolation.name) / "config.toml")
-os.environ["CODECOUNCIL_PROPERTIES"] = str(Path(_isolation.name) / "deploy.properties")
+os.environ["MCHC_CONFIG"] = str(Path(_isolation.name) / "config.toml")
+os.environ["MCHC_PROPERTIES"] = str(Path(_isolation.name) / "deploy.properties")
 os.environ.pop("ARENA_CONFIG", None)
 
 # ── per-test: hermetic AWS credentials ────────────────────────────────────────

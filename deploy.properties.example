@@ -111,7 +111,7 @@ DATA_DIR = .arena
 
 # s3://bucket/prefix/ where finished comparison artifacts are archived.
 # Restart only; comparisons archived under a previous URI are no longer readable here.
-ARTIFACT_S3_URI = s3://${S3_BUCKET}/output/codecouncil/
+ARTIFACT_S3_URI = s3://${S3_BUCKET}/output/mchc/
 
 # s3://bucket/prefix/ for AgentCore job, result, and bundle transfer objects.
 # agentcore-deploy: bundles and the execution role's S3 scope follow this prefix.
@@ -121,22 +121,22 @@ AGENTCORE_TRANSFER_S3_URI = s3://${S3_BUCKET}/code/ai-coding-assistant-agcore-ru
 # agentcore-deploy creates <prefix>_<harness> runtimes; old ones are left in place.
 # Characters: letters, digits and underscores only ([A-Za-z][A-Za-z0-9_]*) — no hyphens.
 # Use underscores instead of hyphens, e.g. "my_deployment" not "my-deployment".
-AGENTCORE_RUNTIME_NAME_PREFIX = codecouncil
+AGENTCORE_RUNTIME_NAME_PREFIX = mchc
 
 # IAM execution role name that agentcore-deploy creates or refreshes for runtime execution.
 # agentcore-deploy creates a role under the new name; the old one is left in place.
 # Characters: [\w+=,.@-] (letters, digits, +=,.@-), length 1-64.
-AGENTCORE_EXECUTION_ROLE_NAME = CodeCouncilBedrockAgentCoreRuntimeRole
+AGENTCORE_EXECUTION_ROLE_NAME = MchcBedrockAgentCoreRuntimeRole
 
 # Name of the inline IAM policy that agentcore-deploy writes onto the execution role.
 # agentcore-deploy adds a policy under the new name; delete the old one by hand.
 # Characters: [\w+=,.@-] (letters, digits, +=,.@-), length 1-128.
-AGENTCORE_INLINE_POLICY_NAME = CodeCouncilAgentCoreRuntime
+AGENTCORE_INLINE_POLICY_NAME = MchcAgentCoreRuntime
 
 # Tag and description prefix applied to AWS resources created by agentcore-deploy.
 # Renaming it does not rename existing resources: the tag applies to resources created
 # afterwards, and agentcore-deploy updates existing runtimes' descriptions.
-AGENTCORE_APPLICATION_TAG = CodeCouncil
+AGENTCORE_APPLICATION_TAG = Multi Coding-Harness Compare
 
 # Optional. Short label for this user: starts with a letter or digit, then letters, digits, or hyphens ([a-z0-9][a-z0-9-]*).
 # With AGENTCORE_ISOLATION = per-user it also scopes runtime and role names.
@@ -348,14 +348,14 @@ PLANNING_MODEL = us.anthropic.claude-opus-5
 # ── Codex provider ────────────────────────────────────────────────────────────────────────
 # Restart only.
 # Codex model provider: amazon-bedrock (default) or amazon-bedrock-runtime.
-# Env var CODECOUNCIL_CODEX_PROVIDER is also honoured as a fallback when this key is unset.
+# Env var MCHC_CODEX_PROVIDER is also honoured as a fallback when this key is unset.
 # CODEX_PROVIDER = amazon-bedrock
 
 # ── Pin AgentCore runtime ARNs (restart only) ─────────────────────────────────────────────
 # Optional. Pin runtime ARNs directly to skip discovery by name; useful when sharing runtimes across accounts or namespaces.
 # Optional. Pin the Claude AgentCore runtime ARN; skips discovery by AGENTCORE_RUNTIME_NAME_PREFIX.
-# CLAUDE_RUNTIME_ARN = arn:aws:bedrock-agentcore:${AWS_REGION}:${AWS_ACCOUNT_ID}:runtime/codecouncil_claude-SUFFIX
+# CLAUDE_RUNTIME_ARN = arn:aws:bedrock-agentcore:${AWS_REGION}:${AWS_ACCOUNT_ID}:runtime/mchc_claude-SUFFIX
 # Optional. Pin the Codex AgentCore runtime ARN; skips discovery by AGENTCORE_RUNTIME_NAME_PREFIX.
-# CODEX_RUNTIME_ARN  = arn:aws:bedrock-agentcore:${AWS_REGION}:${AWS_ACCOUNT_ID}:runtime/codecouncil_codex-SUFFIX
+# CODEX_RUNTIME_ARN  = arn:aws:bedrock-agentcore:${AWS_REGION}:${AWS_ACCOUNT_ID}:runtime/mchc_codex-SUFFIX
 # Optional. Pin the Kiro AgentCore runtime ARN; skips discovery by AGENTCORE_RUNTIME_NAME_PREFIX.
-# KIRO_RUNTIME_ARN   = arn:aws:bedrock-agentcore:${AWS_REGION}:${AWS_ACCOUNT_ID}:runtime/codecouncil_kiro-SUFFIX
+# KIRO_RUNTIME_ARN   = arn:aws:bedrock-agentcore:${AWS_REGION}:${AWS_ACCOUNT_ID}:runtime/mchc_kiro-SUFFIX

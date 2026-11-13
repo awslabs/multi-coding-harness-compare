@@ -123,7 +123,7 @@ class KiroAdapter:
         # A host cli_path means nothing inside an AgentCore microVM, where kiro-cli is linked
         # onto PATH; honour it only where that file exists.
         configured = config.get("cli_path")
-        executable = (os.environ.get("CODECOUNCIL_KIRO_CLI")
+        executable = (os.environ.get("MCHC_KIRO_CLI")
                       or (configured if configured and os.path.isfile(configured) else None) or "kiro-cli")
         ver = await version(executable, "--version", timeout=setup_seconds)
         emit("capabilities", {"version": ver, "interface": "ACP"})
@@ -141,7 +141,7 @@ class KiroAdapter:
         try:
             result = await self.rpc.call("initialize", {"protocolVersion": 1,
                 "clientCapabilities": {},
-                "clientInfo": {"name": "codecouncil", "version": "0.1.0"}}, setup_seconds)
+                "clientInfo": {"name": "mchc", "version": "1.1.0"}}, setup_seconds)
             emit("capabilities", result)
             servers = [{"name": "arena", **BRIDGE_SERVER,
                         "env": [{"name": key, "value": value} for key, value in BRIDGE_SERVER["env"].items()]}]

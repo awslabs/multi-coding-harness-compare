@@ -213,7 +213,7 @@ def plan_quality_issues(plan: Plan) -> list[str]:
                     and len(node.args) >= 2 and "BedrockModel" in ast.unparse(node.args[0])
                     and isinstance(node.args[1], ast.Constant) and node.args[1].value == "__init__"):
                 issues.append(f"{name}:{node.lineno}: patching BedrockModel.__init__ can hide configuration errors. "
-                              "Use observe_constructors from _codecouncil_observe while invoking the public "
+                              "Use observe_constructors from _mchc_observe while invoking the public "
                               "entry point; stub boto3.session.Session.client, not the constructor.")
             if isinstance(node, ast.Assign) and any(
                 isinstance(target, ast.Subscript) and ast.unparse(target.value) == "sys.modules"
@@ -410,7 +410,7 @@ pip installs offline into that private venv; test processes
 have no external network or provider credentials. Failure of evaluator setup is infrastructure.
 Do not require a failure README merely because the evaluator intentionally has no credentials.
 For a requirement to attempt a live call during development, the host-owned JSON file named by
-CODECOUNCIL_VERIFICATION_CONTEXT contains actual native CLI tool executions, never final narratives.
+MCHC_VERIFICATION_CONTEXT contains actual native CLI tool executions, never final narratives.
 Audit those records only for the historical execution requirement, and independently test current
 code behavior. A claim of current live functionality still requires live evidence; never pretend
 an offline mock is a live call. Conditional failure documentation applies only to observed failures.

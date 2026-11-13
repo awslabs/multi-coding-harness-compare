@@ -104,13 +104,13 @@ def ensure_execution_role(cfg, account: str, iam, region: str) -> str:
 
     role = getattr(cfg, "effective_role_name", None)
     if role is None:
-        role = getattr(cfg, "execution_role_name", "CodeCouncilBedrockAgentCoreRuntimeRole")
+        role = getattr(cfg, "execution_role_name", "MchcBedrockAgentCoreRuntimeRole")
 
     policy = getattr(cfg, "effective_policy_name", None)
     if policy is None:
-        policy = getattr(cfg, "inline_policy_name", "CodeCouncilAgentCoreRuntime")
+        policy = getattr(cfg, "inline_policy_name", "MchcAgentCoreRuntime")
 
-    app_tag = getattr(cfg, "application_tag", "CodeCouncil")
+    app_tag = getattr(cfg, "application_tag", "Multi Coding-Harness Compare")
     transfer_uri = getattr(cfg, "transfer_s3_uri", "")
     kms_key_arn = getattr(cfg, "transfer_kms_key_arn", None)
     user_namespace = getattr(cfg, "user_namespace", None)

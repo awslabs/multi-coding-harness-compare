@@ -3,7 +3,7 @@
 """Read-only observation of real Python constructors in the current thread.
 
 This stdlib-only file is frozen into generated acceptance files as
-_codecouncil_observe.py so tests also work after S3 restore and inside Docker.
+_mchc_observe.py so tests also work after S3 restore and inside Docker.
 """
 from contextlib import contextmanager
 import inspect

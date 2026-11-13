@@ -157,19 +157,19 @@ class CodexAdapter:
         # cold in an AgentCore microVM, app-server takes 26-51s to answer initialize, so
         # the 30s this used to hardcode lost the race as soon as the microVM was cold.
         setup_seconds = self.turn.get("setup_seconds", 90)
-        executable = os.environ.get("CODECOUNCIL_CODEX_CLI") or self.turn["config"].get("cli_path") or "codex"
+        executable = os.environ.get("MCHC_CODEX_CLI") or self.turn["config"].get("cli_path") or "codex"
         started = time.monotonic()
         cli_version = await version(executable, "--version", timeout=setup_seconds)
         emit("capabilities", {"version": cli_version, "cli_path": executable,
                               "version_seconds": round(time.monotonic() - started, 1),
-                              "bedrock_region": os.environ.get("CODECOUNCIL_CODEX_REGION"),
+                              "bedrock_region": os.environ.get("MCHC_CODEX_REGION"),
                               "interface": "app-server stdio", "model_requested": self.turn["config"].get("model"),
                               "effort_requested": self.turn["config"].get("effort")})
         self.rpc = await RPC(codex_command("app-server", executable=executable), self.request, self.notification).start()
         try:
             started = time.monotonic()
             init = await self.rpc.call("initialize", {
-                "clientInfo": {"name": "codecouncil", "version": "0.1.0"},
+                "clientInfo": {"name": "mchc", "version": "1.1.0"},
                 "capabilities": {"experimentalApi": True}}, setup_seconds)
             # Remote stdout reaches the host in one buffered flush, so per-event
             # timestamps cannot separate the version check from app-server startup.

@@ -1,3 +1,5 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 """A fresh workstation starts the API and worker together; both open a brand-new database."""
 import fcntl
 import multiprocessing as mp

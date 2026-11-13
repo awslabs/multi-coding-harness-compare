@@ -187,7 +187,7 @@ _PROBE_SRC = (
     "p=json.loads(zlib.decompress(base64.b64decode(os.environ['CC_PAYLOAD'])))\n"
     "def check(path):\n"
     "    e={'path':path}\n"
-    "    probe=os.path.join(path,'.codecouncil-probe')\n"
+    "    probe=os.path.join(path,'.mchc-probe')\n"
     "    try:\n"
     "        os.makedirs(probe,exist_ok=True)\n"
     "        f=os.path.join(probe,'probe.txt')\n"
@@ -220,7 +220,7 @@ _PROBE_SRC = (
     "out={'user':pwd.getpwuid(os.getuid()).pw_name,'uid':os.getuid(),\n"
     "     'home':os.environ.get('HOME'),'cwd':os.getcwd(),\n"
     "     'paths':[check(x) for x in p['paths']]}\n"
-    "print('CODECOUNCIL_PROBE '+json.dumps(out))\n"
+    "print('MCHC_PROBE '+json.dumps(out))\n"
 )
 
 # Pre-compressed constants embedded in command strings (shell-safe base64, no secrets)
@@ -273,10 +273,10 @@ def _harness_env(harness: str, cfg, harness_cfg) -> dict:
     elif harness == "codex":
         model = harness_cfg.model or ""
         region = harness_cfg.model_regions.get(model, cfg.region)
-        env["CODECOUNCIL_CODEX_REGION"] = region
+        env["MCHC_CODEX_REGION"] = region
         # Use HarnessConfig.provider when set (deploy.properties CODEX_PROVIDER);
         # fall back to the execution-role provider which is always amazon-bedrock-runtime.
-        env["CODECOUNCIL_CODEX_PROVIDER"] = getattr(harness_cfg, "provider", None) or "amazon-bedrock-runtime"
+        env["MCHC_CODEX_PROVIDER"] = getattr(harness_cfg, "provider", None) or "amazon-bedrock-runtime"
         env["AWS_REGION"] = cfg.region
         env["AWS_DEFAULT_REGION"] = cfg.region
     elif harness == "kiro":
@@ -316,7 +316,7 @@ def _session_id(run_id: str, root: Path, epoch: int) -> str:
     # Epoch 0 hashes exactly as it did before rotation existed, so a run already holding
     # a warm session keeps it across an upgrade.
     seed = run_id + str(root) + (f"#{epoch}" if epoch else "")
-    return "codecouncil-" + run_id + "-" + hashlib.sha256(seed.encode()).hexdigest()[:32]
+    return "mchc-" + run_id + "-" + hashlib.sha256(seed.encode()).hexdigest()[:32]
 
 
 def _session_epoch(root: Path) -> int:
@@ -357,7 +357,7 @@ class RemoteProcess:
             line, self._stdout_buf = self._stdout_buf.split(b"\n", 1)
             try:
                 msg = json.loads(line)
-                if isinstance(msg, dict) and msg.get("type") == "__codecouncil":
+                if isinstance(msg, dict) and msg.get("type") == "__mchc":
                     self._handle_control(msg.get("data", {}))
                     continue
             except (ValueError, KeyError):
@@ -412,7 +412,7 @@ class RemoteProcess:
             self._stdout_buf = b""
             try:
                 msg = json.loads(line)
-                if isinstance(msg, dict) and msg.get("type") == "__codecouncil":
+                if isinstance(msg, dict) and msg.get("type") == "__mchc":
                     self._handle_control(msg.get("data", {}))
                 else:
                     self._stdout.feed_data(line)
@@ -665,7 +665,7 @@ class AgentCore:
                     "qualifier": qualifier,
                     # The runtime itself records where a payload too large to vendor was
                     # staged, so a missing local records file cannot lose the reference.
-                    "tools_uri": info.get("environmentVariables", {}).get("CODECOUNCIL_TOOLS_URI"),
+                    "tools_uri": info.get("environmentVariables", {}).get("MCHC_TOOLS_URI"),
                 }
                 any_resolved = True
             except Exception as exc:
@@ -728,7 +728,7 @@ class AgentCore:
                 result["runtimes"][harness] = {"blocked": entry["blocked"]}
                 continue
             arn, qualifier = entry["arn"], entry["qualifier"]
-            session_id = "codecouncil-probe-" + hashlib.sha256(
+            session_id = "mchc-probe-" + hashlib.sha256(
                 f"{harness}{time.time()}".encode()).hexdigest()[:32]
             record = {"version": entry.get("version"), "arn": arn}
             try:
@@ -736,8 +736,8 @@ class AgentCore:
                     await self._activate_session(arn, qualifier, session_id)
                 out = await self._collect_invoke(arn, qualifier, session_id, command, 120)
                 for line in out.splitlines():
-                    if line.startswith("CODECOUNCIL_PROBE "):
-                        record.update(json.loads(line[len("CODECOUNCIL_PROBE "):]))
+                    if line.startswith("MCHC_PROBE "):
+                        record.update(json.loads(line[len("MCHC_PROBE "):]))
                         break
                 else:
                     record["error"] = out.strip()[-800:] or "probe produced no output"
@@ -810,7 +810,7 @@ class AgentCore:
         # locked", and both Codex and Kiro keep their session state in a SQLite database
         # under HOME. The mount is used for the durable tools cache only (see cache_root).
         # Persistence of the work itself is host-owned — it rides the job/result tarballs.
-        job_root = getattr(cfg, "job_root", "/var/tmp/codecouncil")
+        job_root = getattr(cfg, "job_root", "/var/tmp/mchc")
         jobdir = f"{job_root}/{run_id}"
         home_remote = jobdir + "/home"
         workspace_remote = jobdir + "/workspace"

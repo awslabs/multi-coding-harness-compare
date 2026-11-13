@@ -28,7 +28,7 @@ KIRO_CHOICES = ("copy-host-login", "login-in-home")
 # config.example.toml is copied as is; every answer setup settles is written to
 # deploy.properties, including RUNTIME and KIRO_AUTH.
 RUNTIMES = ("native", "agentcore")
-ARTIFACT_PREFIX = "output/codecouncil/"
+ARTIFACT_PREFIX = "output/mchc/"
 TRANSFER_PREFIX = "code/ai-coding-assistant-agcore-runtime/"
 # Values copied from deploy.properties.example that nobody has filled in yet.
 PLACEHOLDERS = ("YOUR_", "/absolute/path/to/")
@@ -360,7 +360,7 @@ def _deploy(config_path: Path, properties_path: Path | None = None) -> dict:
     not do implicitly.
     """
     import asyncio
-    os.environ["CODECOUNCIL_CONFIG"] = str(config_path)
+    os.environ["MCHC_CONFIG"] = str(config_path)
     from .config import load_config
     config = load_config(config_path, properties_path)
     detail = {}

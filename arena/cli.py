@@ -40,7 +40,7 @@ def start_background(config, open_browser=False):
             log = config.root / ("api.log" if role == "serve" else "worker.log")
             with log.open("a") as output:
                 os.fchmod(output.fileno(), 0o600)
-                extra_env: dict = {"CODECOUNCIL_SERVICE_LOG": "api" if role == "serve" else "worker"}
+                extra_env: dict = {"MCHC_SERVICE_LOG": "api" if role == "serve" else "worker"}
                 # Forward non-default AWS credential file paths from deploy.properties
                 # so subprocesses (api, worker) use the same credential files as the
                 # calling process.  boto3 sessions in artifact_storage, judge_models and
@@ -49,7 +49,7 @@ def start_background(config, open_browser=False):
                     extra_env["AWS_CONFIG_FILE"] = config.aws_config_file
                 if config.aws_shared_creds_file:
                     extra_env["AWS_SHARED_CREDENTIALS_FILE"] = config.aws_shared_creds_file
-                launched[role] = subprocess.Popen([sys.executable, "-m", "codecouncil", role],
+                launched[role] = subprocess.Popen([sys.executable, "-m", "mchc", role],
                     cwd=Path.cwd(), stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT,
                     start_new_session=True, close_fds=True,
                     env={**os.environ, **extra_env})
@@ -138,7 +138,7 @@ def _own_service_pids(config) -> dict:
                     found[role] = int(pid)
                 continue
             # Only this application's own service command; never another process on the port.
-            if f"codecouncil {role}" in line or f"arena.cli {role}" in line or f"arena {role}" in line:
+            if f"mchc {role}" in line or f"arena.cli {role}" in line or f"arena {role}" in line:
                 found[role] = int(pid)
     return found
 

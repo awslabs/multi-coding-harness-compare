@@ -80,8 +80,8 @@ class StopTests(unittest.TestCase):
                                               "interrupted_runs": []}))
 
     def test_only_this_applications_own_service_commands_are_matched(self):
-        commands = {"101": "python -m codecouncil serve", "102": "node server.js",
-                    "201": "/x/.venv/bin/python -m codecouncil worker"}
+        commands = {"101": "python -m mchc serve", "102": "node server.js",
+                    "201": "/x/.venv/bin/python -m mchc worker"}
 
         def run(argv, **kwargs):
             if argv[0] == "lsof":

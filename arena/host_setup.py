@@ -1381,7 +1381,7 @@ def inherit_setup(harness, configured, home, *, configured_region: str | None = 
         "HOME": str(host),
         "CLAUDE_CONFIG_DIR": str(home / ".claude"),
         "CODEX_HOME": str(home / ".codex"),
-        "CODECOUNCIL_" + harness.upper() + "_CLI": str(executable),
+        "MCHC_" + harness.upper() + "_CLI": str(executable),
         "AWS_CONFIG_FILE": os.environ.get("AWS_CONFIG_FILE", str(host / ".aws/config")),
         "AWS_SHARED_CREDENTIALS_FILE": os.environ.get(
             "AWS_SHARED_CREDENTIALS_FILE", str(host / ".aws/credentials")),
@@ -1406,11 +1406,11 @@ def inherit_setup(harness, configured, home, *, configured_region: str | None = 
                 )
             requested = configured.model or settings.get("model")
             selected_region = configured.model_regions.get(requested, region)
-            env.update(CODECOUNCIL_CODEX_REGION=selected_region,
-                       CODECOUNCIL_CODEX_DEFAULT_REGION=region,
-                       CODECOUNCIL_CODEX_MODEL_REGIONS=json.dumps(configured.model_regions))
+            env.update(MCHC_CODEX_REGION=selected_region,
+                       MCHC_CODEX_DEFAULT_REGION=region,
+                       MCHC_CODEX_MODEL_REGIONS=json.dumps(configured.model_regions))
             if profile:
-                env["CODECOUNCIL_CODEX_AWS_PROFILE"] = profile
+                env["MCHC_CODEX_AWS_PROFILE"] = profile
             routing = {"provider": "amazon-bedrock", "default_region": region,
                        "selected_region": selected_region, "model_regions": configured.model_regions}
     for key in ("AWS_CONFIG_FILE", "AWS_SHARED_CREDENTIALS_FILE"):
@@ -1431,7 +1431,7 @@ def inherit_setup(harness, configured, home, *, configured_region: str | None = 
     env["PATH"] = str(home / ".local/bin") + ":" + os.environ.get("PATH", "/usr/bin:/bin")
     # Expose the configured Codex provider so the adapter reads the right one.
     if harness == "codex" and configured.provider:
-        env["CODECOUNCIL_CODEX_PROVIDER"] = configured.provider
+        env["MCHC_CODEX_PROVIDER"] = configured.provider
     detail = {
         "mode": "existing macOS CLI setup", "executable": str(executable),
         "settings_sources": sources, "sessions": "private to this run",

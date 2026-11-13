@@ -302,9 +302,9 @@ class JobTarballSecretsFilterTests(unittest.TestCase):
             "status": "READY", "agentRuntimeArtifact": {}, "agentRuntimeVersion": "1"}
         ctrl.list_agent_runtimes.return_value = {
             "agentRuntimes": [
-                {"agentRuntimeName": "codecouncil_claude",
+                {"agentRuntimeName": "mchc_claude",
                  "agentRuntimeArn": "arn:fake",
-                 "agentRuntimeId": "codecouncil_claude-fake"}
+                 "agentRuntimeId": "mchc_claude-fake"}
             ]
         }
         ac._control_client = lambda: ctrl
@@ -456,7 +456,7 @@ class SecretChannelUploadTests(unittest.TestCase):
                 "status": "READY", "agentRuntimeArtifact": {}, "agentRuntimeVersion": "1"}
             ctrl.list_agent_runtimes.return_value = {
                 "agentRuntimes": [
-                    {"agentRuntimeName": "codecouncil_claude",
+                    {"agentRuntimeName": "mchc_claude",
                      "agentRuntimeArn": "arn:fake",
                      "agentRuntimeId": "fake"}
                 ]
@@ -541,7 +541,7 @@ class SecretChannelUploadTests(unittest.TestCase):
             ctrl.get_agent_runtime.return_value = {
                 "status": "READY", "agentRuntimeArtifact": {}, "agentRuntimeVersion": "1"}
             ctrl.list_agent_runtimes.return_value = {"agentRuntimes": [
-                {"agentRuntimeName": "codecouncil_claude", "agentRuntimeArn": "arn:fake",
+                {"agentRuntimeName": "mchc_claude", "agentRuntimeArn": "arn:fake",
                  "agentRuntimeId": "fake"}]}
             ac._control_client = lambda: ctrl
             data = Mock()
@@ -609,7 +609,7 @@ class S3KeyNamespacingIntegrationTests(unittest.TestCase):
             ctrl.get_agent_runtime.return_value = {
                 "status": "READY", "agentRuntimeArtifact": {}, "agentRuntimeVersion": "1"}
             ctrl.list_agent_runtimes.return_value = {"agentRuntimes": [
-                {"agentRuntimeName": "codecouncil_claude", "agentRuntimeArn": "arn:fake",
+                {"agentRuntimeName": "mchc_claude", "agentRuntimeArn": "arn:fake",
                  "agentRuntimeId": "fake"}]}
             ac._control_client = lambda: ctrl
             data = Mock()

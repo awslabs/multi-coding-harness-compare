@@ -189,7 +189,7 @@ class Worker:
                         self.storage.archive_path(root)
                 except BlockingIOError:
                     continue
-        protected = [Path(__file__).parent.resolve(), Path(__file__).parent.parent / "codecouncil",
+        protected = [Path(__file__).parent.resolve(), Path(__file__).parent.parent / "mchc",
                      Path(__file__).parent.parent / "tests", self.storage.control,
                      self.config.root / "credential-templates", self.config.root / "model-discovery"]
         protected += [Path(__file__).parent.parent / name for name in (

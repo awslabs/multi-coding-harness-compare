@@ -10,7 +10,7 @@ The bundle contains:
 
 When the tools tree exceeds the AgentCore zip ceiling (200 MB zipped / 600 MB
 unzipped), it is staged as a separate .tar.gz uploaded to S3; the in-VM
-bootstrap downloads it from CODECOUNCIL_TOOLS_URI at first boot.
+bootstrap downloads it from MCHC_TOOLS_URI at first boot.
 
 Workstation-config baking: when HARNESS_IMAGE_WORKSTATION_CONFIG=true and the
 caller passes a config_snapshot_dir, its contents are copied into

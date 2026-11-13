@@ -210,7 +210,7 @@ class CoverageCompilerTests(unittest.TestCase):
     def test_s3_recovery_preserves_choice_and_review_history_without_local_files(self):
         with tempfile.TemporaryDirectory() as directory:
             cfg = Config(data_dir=str(Path(directory) / "original"),
-                         artifact_s3_uri="s3://test-bucket/output/codecouncil/")
+                         artifact_s3_uri="s3://test-bucket/output/mchc/")
             service = Service(cfg)
             c = service.create("Build a CLI", test_coverage="comprehensive")
             prior = c["test_review"]

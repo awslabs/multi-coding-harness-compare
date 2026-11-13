@@ -36,9 +36,9 @@ cd "$REPO" || exit 11
 PY="$REPO/.venv/bin/python"
 CLI="$REPO/.venv/bin/multi-coding-harness-compare"
 # The same files for every stage, and for the services started at the end.
-CONFIG="${CODECOUNCIL_CONFIG:-${ARENA_CONFIG:-$REPO/config.toml}}"
-PROPS="${CODECOUNCIL_PROPERTIES:-$(dirname "$CONFIG")/deploy.properties}"
-export CODECOUNCIL_CONFIG="$CONFIG" CODECOUNCIL_PROPERTIES="$PROPS"
+CONFIG="${MCHC_CONFIG:-${ARENA_CONFIG:-$REPO/config.toml}}"
+PROPS="${MCHC_PROPERTIES:-$(dirname "$CONFIG")/deploy.properties}"
+export MCHC_CONFIG="$CONFIG" MCHC_PROPERTIES="$PROPS"
 LOGDIR="$REPO/.bootstrap"
 LOG="$LOGDIR/bootstrap-$(date +%Y%m%d-%H%M%S).log"
 

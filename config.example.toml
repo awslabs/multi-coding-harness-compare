@@ -51,13 +51,13 @@ planning_max_tokens = 100000 # Output ceiling per planning response; one bounded
 # deploy.properties (AWS_REGION, AWS_PROFILE, AGENTCORE_*).
 [agentcore]
 workspace_mount = "/mnt/workspace"      # sessionStorage NFS mount inside the microVM (1.07 GB)
-job_root = "/var/tmp/codecouncil"       # per-run path on the writable overlay (10.4 GB).
+job_root = "/var/tmp/mchc"       # per-run path on the writable overlay (10.4 GB).
                                         # The command user is unprivileged, so /, /opt and
                                         # /var/task are read-only; must be under /tmp,
                                         # /var/tmp or /home. Not /tmp: Codex refuses to
                                         # create PATH alias helpers under a temporary dir.
                                         # Verify with agentcore-probe.
-cache_dir = "codecouncil-cache"         # durable tools cache, relative to workspace_mount.
+cache_dir = "mchc-cache"         # durable tools cache, relative to workspace_mount.
                                         # Survives a cold microVM; reset after 14 days
                                         # without an invoke or on a runtime version update.
                                         # Never put SQLite there — the mount has no locking.
@@ -73,7 +73,7 @@ session_activation = true               # invoke the runtime once before first c
 # (<AGENTCORE_RUNTIME_NAME_PREFIX>_<harness>), so a new workstation needs no ARNs here and
 # must not re-deploy to find them. Pin one only to override that discovery:
 # [agentcore.runtimes.claude]
-# arn = "arn:aws:bedrock-agentcore:${AWS_REGION}:${AWS_ACCOUNT_ID}:runtime/codecouncil_claude-SUFFIX"
+# arn = "arn:aws:bedrock-agentcore:${AWS_REGION}:${AWS_ACCOUNT_ID}:runtime/mchc_claude-SUFFIX"
 # ────────────────────────────────────────────────────────────────────────────
 
 # Without home_template, each harness's non-secret configuration is read from the

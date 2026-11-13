@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 def _emit(kind, **kwargs):
-    line = json.dumps({"type": "__codecouncil", "data": {"kind": kind, **kwargs}}, default=str)
+    line = json.dumps({"type": "__mchc", "data": {"kind": kind, **kwargs}}, default=str)
     sys.stdout.buffer.write(line.encode() + b"\n")
     sys.stdout.buffer.flush()
 
@@ -90,7 +90,7 @@ def _staged_tools_roots(stage: dict) -> list[str]:
     """
     roots, seen = [], set()
     for root in (stage.get("cache_root"), stage.get("cache_fallback"),
-                 "/tmp/codecouncil-tools"):
+                 "/tmp/mchc-tools"):
         if not root or root in seen:
             continue
         seen.add(root)
@@ -112,7 +112,7 @@ def _staged_tools_roots(stage: dict) -> list[str]:
 def _staged_tools_target(stage: dict, name: str, version: str) -> Path:
     """First usable cache location for a staged tools tree."""
     roots = _staged_tools_roots(stage)
-    root = roots[0] if roots else "/tmp/codecouncil-tools"
+    root = roots[0] if roots else "/tmp/mchc-tools"
     return Path(root) / "tools" / f"{name}-{version}"
 
 
@@ -122,7 +122,7 @@ def _ensure_staged_tools(stage: dict, home_bin: Path) -> str | None:
     name = stage.get("name", "tools")
     candidates = [Path(r) / "tools" / f"{name}-{version}"
                   for r in _staged_tools_roots(stage)] or [
-                      Path(f"/tmp/codecouncil-tools/tools/{name}-{version}")]
+                      Path(f"/tmp/mchc-tools/tools/{name}-{version}")]
     for target in candidates:
         if (target / ".ready").exists():
             return str(target)
@@ -270,13 +270,13 @@ def _resolve_tools(job: dict, home_bin: Path) -> tuple[str | None, dict]:
         # Wheel-bundled binary at a fixed path inside /var/task
         claude_bin = Path("/var/task/claude_agent_sdk/_bundled/claude")
         if claude_bin.exists():
-            extra["CODECOUNCIL_CLAUDE_CLI"] = str(claude_bin)
+            extra["MCHC_CLAUDE_CLI"] = str(claude_bin)
             _symlink(claude_bin, "claude")
             return str(claude_bin.parent), extra
         # Fall back to vendored layout
         vendored = Path("/var/task/tools/claude/bin/claude")
         if vendored.exists():
-            extra["CODECOUNCIL_CLAUDE_CLI"] = str(vendored)
+            extra["MCHC_CLAUDE_CLI"] = str(vendored)
             _symlink(vendored, "claude")
             return str(vendored.parent), extra
 
@@ -285,7 +285,7 @@ def _resolve_tools(job: dict, home_bin: Path) -> tuple[str | None, dict]:
         vendored = Path("/var/task/tools/codex/bin")
         codex_bin = vendored / "codex"
         if codex_bin.exists():
-            extra["CODECOUNCIL_CODEX_CLI"] = str(codex_bin)
+            extra["MCHC_CODEX_CLI"] = str(codex_bin)
             _symlink(codex_bin, "codex")
             # Also link codex-code-mode-host if present
             host_bin = vendored / "codex-code-mode-host"
@@ -375,8 +375,8 @@ def main(jobdir_str):
         # The microVM HOME starts empty, so git has no identity and the harness's first
         # commit dies with "Author identity unknown". Supply the same identity
         # isolation.initialize_checkout uses for the baseline commit.
-        "GIT_AUTHOR_NAME": "CodeCouncil", "GIT_AUTHOR_EMAIL": "codecouncil@localhost",
-        "GIT_COMMITTER_NAME": "CodeCouncil", "GIT_COMMITTER_EMAIL": "codecouncil@localhost",
+        "GIT_AUTHOR_NAME": "Multi Coding-Harness Compare", "GIT_AUTHOR_EMAIL": "mchc@localhost",
+        "GIT_COMMITTER_NAME": "Multi Coding-Harness Compare", "GIT_COMMITTER_EMAIL": "mchc@localhost",
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_CONFIG_GLOBAL": str(home / ".gitconfig"),
         "LANG": "C.UTF-8",

@@ -123,7 +123,7 @@ async def prepare_check_python(root: Path, snapshot: Path, seconds: int, *, depe
     # site-packages so candidate-specific wheels can override their versions.
     site = environment / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
     inherited = sorted({sysconfig.get_path("purelib"), sysconfig.get_path("platlib")})
-    (site / "codecouncil-runtime.pth").write_text("\n".join(inherited) + "\n")
+    (site / "mchc-runtime.pth").write_text("\n".join(inherited) + "\n")
     python = environment / "bin/python"
     required, unsupported = set(), []
     files = sorted(snapshot.rglob("requirements*.txt"))

@@ -10,7 +10,7 @@ from arena.artifact_readiness import readiness
 class ArchivedQueueTests(queue.QueueTests):
     async def asyncSetUp(self):
         await super().asyncSetUp()
-        self.cfg.artifact_s3_uri = "s3://test-bucket/output/codecouncil/"
+        self.cfg.artifact_s3_uri = "s3://test-bucket/output/mchc/"
         self.w.storage = ArtifactStorage(self.cfg, self.s, FakeS3())
         self.w.service.storage = self.w.storage
 

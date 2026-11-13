@@ -263,7 +263,7 @@ class SetupCommandTests(unittest.TestCase):
         self.assertEqual(config.repository_roots, [self.temp.name])
         self.assertEqual(config.judge_profile, "example-profile")
         self.assertEqual(config.artifact_s3_profile, "example-profile")
-        self.assertEqual(config.artifact_s3_uri, "s3://example-bucket/output/codecouncil/")
+        self.assertEqual(config.artifact_s3_uri, "s3://example-bucket/output/mchc/")
         self.assertEqual(config.harnesses["kiro"].refresh_files,
                          [".local/share/kiro-cli/data.sqlite3"])
         # The example must produce a working evaluator, not a silently degraded one.
@@ -355,7 +355,7 @@ class AgentCoreSetupTests(unittest.TestCase):
         self.assertEqual(config.agentcore.transfer_s3_uri,
                          "s3://example-bucket/code/ai-coding-assistant-agcore-runtime/")
         self.assertEqual(config.agentcore.profile, "example-profile")
-        self.assertEqual(config.agentcore.job_root, "/var/tmp/codecouncil")
+        self.assertEqual(config.agentcore.job_root, "/var/tmp/mchc")
         # Nothing pinned: a new workstation discovers the runtimes already in the account.
         self.assertEqual(config.agentcore.runtimes, {})
         self.assertIn("no ARNs needed", report["agentcore"]["runtime_discovery"])
@@ -366,7 +366,7 @@ class AgentCoreSetupTests(unittest.TestCase):
         config = self.load()
         self.assertEqual(config.agentcore.transfer_s3_uri,
                          "s3://other-bucket/code/ai-coding-assistant-agcore-runtime/")
-        self.assertEqual(config.artifact_s3_uri, "s3://example-bucket/output/codecouncil/")
+        self.assertEqual(config.artifact_s3_uri, "s3://example-bucket/output/mchc/")
 
     def test_without_deploy_the_exact_provisioning_commands_are_printed(self):
         report = json.loads(self.setup("--runtime", "agentcore").stdout)
@@ -541,9 +541,9 @@ class ExampleConfigurationTests(unittest.TestCase):
             config = load_config(REPO / "config.example.toml", filled)
         self.assertEqual(config.runtime, "agentcore")
         self.assertEqual(config.harnesses["kiro"].refresh_files, [".local/share/kiro-cli/data.sqlite3"])
-        self.assertEqual(config.artifact_s3_uri, "s3://YOUR_BUCKET/output/codecouncil/")
+        self.assertEqual(config.artifact_s3_uri, "s3://YOUR_BUCKET/output/mchc/")
         self.assertEqual(config.judge_profile, "YOUR_AWS_PROFILE")
-        self.assertEqual(config.agentcore.inline_policy_name, "CodeCouncilAgentCoreRuntime")
+        self.assertEqual(config.agentcore.inline_policy_name, "MchcAgentCoreRuntime")
 
     def test_an_unfilled_choice_is_refused_with_its_options(self):
         with self.assertRaisesRegex(ValueError, "RUNTIME must be one of native, agentcore"):

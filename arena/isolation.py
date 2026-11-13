@@ -158,8 +158,8 @@ async def initialize_checkout(root: Path):
     # Never run repository-supplied hooks or host-configured clean filters while
     # constructing the private baseline commit.
     prefix = ["env", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null",
-              "GIT_AUTHOR_NAME=CodeCouncil", "GIT_AUTHOR_EMAIL=codecouncil@localhost",
-              "GIT_COMMITTER_NAME=CodeCouncil", "GIT_COMMITTER_EMAIL=codecouncil@localhost",
+              "GIT_AUTHOR_NAME=Multi Coding-Harness Compare", "GIT_AUTHOR_EMAIL=mchc@localhost",
+              "GIT_COMMITTER_NAME=Multi Coding-Harness Compare", "GIT_COMMITTER_EMAIL=mchc@localhost",
               "GIT_AUTHOR_DATE=2000-01-01T00:00:00+00:00",
               "GIT_COMMITTER_DATE=2000-01-01T00:00:00+00:00",
               "git", "-C", str(root), "-c", "core.hooksPath=/dev/null"]

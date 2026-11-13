@@ -63,7 +63,7 @@
       "Sid": "AgentCoreGet",
       "Effect": "Allow",
       "Action": "bedrock-agentcore:GetAgentRuntime",
-      "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/codecouncil*"
+      "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/mchc*"
     },
     {
       "Sid": "ListOnly",
@@ -80,7 +80,7 @@
         "bedrock-agentcore:GetAgentRuntimeSession",
         "bedrock-agentcore:InvokeAgentRuntimeCommand"
       ],
-      "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/codecouncil*"
+      "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/mchc*"
     }
   ]
 }

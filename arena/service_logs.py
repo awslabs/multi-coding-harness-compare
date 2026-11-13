@@ -33,6 +33,6 @@ class ArtifactLog(io.TextIOBase):
 
 
 def configure_logs(config):
-    role = os.environ.get("CODECOUNCIL_SERVICE_LOG")
+    role = os.environ.get("MCHC_SERVICE_LOG")
     if role in ("api", "worker"):
         sys.stdout = sys.stderr = ArtifactLog(config.root, role)

@@ -426,11 +426,11 @@ class EnvironmentLiteralsTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# CODECOUNCIL_CODEX_PROVIDER env var fallback
+# MCHC_CODEX_PROVIDER env var fallback
 # ---------------------------------------------------------------------------
 
 class CodexProviderEnvFallbackTests(unittest.TestCase):
-    """CODECOUNCIL_CODEX_PROVIDER must be honoured as a fallback when CODEX_PROVIDER is unset."""
+    """MCHC_CODEX_PROVIDER must be honoured as a fallback when CODEX_PROVIDER is unset."""
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -443,7 +443,7 @@ class CodexProviderEnvFallbackTests(unittest.TestCase):
 
     def _resolve(self, props_text="", env_extra=None):
         self.props.write_text(props_text)
-        env = {k: v for k, v in os.environ.items() if k != "CODECOUNCIL_CODEX_PROVIDER"}
+        env = {k: v for k, v in os.environ.items() if k != "MCHC_CODEX_PROVIDER"}
         if env_extra:
             env.update(env_extra)
         with patch.dict(os.environ, env, clear=True):
@@ -452,44 +452,44 @@ class CodexProviderEnvFallbackTests(unittest.TestCase):
     def test_env_var_used_when_codex_provider_unset_in_properties(self):
         cfg, rep = self._resolve(
             props_text="",
-            env_extra={"CODECOUNCIL_CODEX_PROVIDER": "amazon-bedrock-runtime"},
+            env_extra={"MCHC_CODEX_PROVIDER": "amazon-bedrock-runtime"},
         )
         self.assertEqual(cfg.harnesses["codex"].provider, "amazon-bedrock-runtime",
-                         "CODECOUNCIL_CODEX_PROVIDER env var must fill harnesses.codex.provider")
+                         "MCHC_CODEX_PROVIDER env var must fill harnesses.codex.provider")
 
     def test_env_var_source_recorded_in_report(self):
         _, rep = self._resolve(
             props_text="",
-            env_extra={"CODECOUNCIL_CODEX_PROVIDER": "amazon-bedrock-runtime"},
+            env_extra={"MCHC_CODEX_PROVIDER": "amazon-bedrock-runtime"},
         )
         source = rep["fields"].get("harnesses.codex.provider", {}).get("source", "")
-        self.assertIn("CODECOUNCIL_CODEX_PROVIDER", source,
-                      "Report must note env:CODECOUNCIL_CODEX_PROVIDER as the source")
+        self.assertIn("MCHC_CODEX_PROVIDER", source,
+                      "Report must note env:MCHC_CODEX_PROVIDER as the source")
 
     def test_deploy_properties_codex_provider_takes_precedence_over_env_var(self):
         # CODEX_PROVIDER in deploy.properties must win over the legacy env var.
         cfg, _ = self._resolve(
             props_text="CODEX_PROVIDER = amazon-bedrock\n",
-            env_extra={"CODECOUNCIL_CODEX_PROVIDER": "amazon-bedrock-runtime"},
+            env_extra={"MCHC_CODEX_PROVIDER": "amazon-bedrock-runtime"},
         )
         self.assertEqual(cfg.harnesses["codex"].provider, "amazon-bedrock",
-                         "CODEX_PROVIDER in deploy.properties must override CODECOUNCIL_CODEX_PROVIDER")
+                         "CODEX_PROVIDER in deploy.properties must override MCHC_CODEX_PROVIDER")
 
     def test_config_toml_literal_takes_precedence_over_env_var(self):
         # A literal in config.toml must win over the env var fallback.
         self.config.write_text('[harnesses.codex]\nprovider = "amazon-bedrock"\n')
         cfg, _ = self._resolve(
             props_text="",
-            env_extra={"CODECOUNCIL_CODEX_PROVIDER": "amazon-bedrock-runtime"},
+            env_extra={"MCHC_CODEX_PROVIDER": "amazon-bedrock-runtime"},
         )
         self.assertEqual(cfg.harnesses["codex"].provider, "amazon-bedrock",
-                         "config.toml literal for provider must override CODECOUNCIL_CODEX_PROVIDER")
+                         "config.toml literal for provider must override MCHC_CODEX_PROVIDER")
 
     def test_provider_none_when_neither_set(self):
         cfg, _ = self._resolve(props_text="", env_extra={})
         self.assertIsNone(cfg.harnesses["codex"].provider,
                           "provider must remain None when neither CODEX_PROVIDER nor "
-                          "CODECOUNCIL_CODEX_PROVIDER is set")
+                          "MCHC_CODEX_PROVIDER is set")
 
 
 # ---------------------------------------------------------------------------
@@ -627,8 +627,8 @@ class EnvironmentLiteralsBackwardCompatTests(unittest.TestCase):
         # agentcore.runtime_name_prefix is bound to AGENTCORE_RUNTIME_NAME_PREFIX.
         # When both have the same value, config-toml-environment-literals must not fire.
         _, rep = self.resolve(
-            '[agentcore]\nruntime_name_prefix = "codecouncil"\n',
-            "AGENTCORE_RUNTIME_NAME_PREFIX = codecouncil\n",
+            '[agentcore]\nruntime_name_prefix = "mchc"\n',
+            "AGENTCORE_RUNTIME_NAME_PREFIX = mchc\n",
         )
         fields = [e["field"] for e in environment_literal_fields(rep)]
         self.assertNotIn(
@@ -640,7 +640,7 @@ class EnvironmentLiteralsBackwardCompatTests(unittest.TestCase):
         """A config.toml literal that diverges from deploy.properties must still be flagged."""
         _, rep = self.resolve(
             '[agentcore]\nruntime_name_prefix = "other"\n',
-            "AGENTCORE_RUNTIME_NAME_PREFIX = codecouncil\n",
+            "AGENTCORE_RUNTIME_NAME_PREFIX = mchc\n",
         )
         fields = [e["field"] for e in environment_literal_fields(rep)]
         self.assertIn("agentcore.runtime_name_prefix", fields)
@@ -699,7 +699,7 @@ class DeployerPolicyRoleArnTests(unittest.TestCase):
     def test_deployer_policy_with_role_name_produces_scoped_arn(self):
         from harness_image.iam import deployer_policy
         doc = deployer_policy("123456789012", "us-east-1", "b", "p",
-                              role_name="MyRole", agentcore_prefix="codecouncil")
+                              role_name="MyRole", agentcore_prefix="mchc")
         resources = [
             s["Resource"] for s in doc["Statement"]
             if isinstance(s.get("Resource"), str) and "role" in s["Resource"]

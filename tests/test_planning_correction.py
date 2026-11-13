@@ -180,7 +180,7 @@ class ConstructorObservationTests(unittest.TestCase):
 
     def test_frozen_helper_runs_without_application_or_prior_run_files(self):
         source = (
-            "from _codecouncil_observe import observe_constructors\n"
+            "from _mchc_observe import observe_constructors\n"
             "class Constructor:\n"
             "    def __init__(self, value):\n        self.value = value\n"
             "with observe_constructors(Constructor) as calls:\n    instance = Constructor(42)\n"
@@ -268,7 +268,7 @@ class PlannerProvenanceTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(item["effort"], "max")
             self.assertIn(OBSERVER_FILENAME, result.acceptance_files)
             self.assertIn("sys.setprofile", prompts[0])
-            self.assertIn("from _codecouncil_observe import observe_constructors", prompts[1])
+            self.assertIn("from _mchc_observe import observe_constructors", prompts[1])
 
 
 if __name__ == "__main__":

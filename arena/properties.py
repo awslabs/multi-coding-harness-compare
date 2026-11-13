@@ -16,7 +16,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-PROPERTIES_ENV = "CODECOUNCIL_PROPERTIES"
+PROPERTIES_ENV = "MCHC_PROPERTIES"
 PROPERTIES_FILE = "deploy.properties"
 
 _KEY_NAME = re.compile(r"[A-Z][A-Z0-9_]*\Z")
@@ -272,7 +272,7 @@ KEYS = (
     Key("CODEX_PROVIDER", ("harnesses.codex.provider",),
         redeploy="restart the API and worker",
         doc="amazon-bedrock (default) | amazon-bedrock-runtime. Selects the Codex model provider. "
-            "Env var CODECOUNCIL_CODEX_PROVIDER is still honoured as a fallback."),
+            "Env var MCHC_CODEX_PROVIDER is still honoured as a fallback."),
 )
 KNOWN = {key.name: key for key in KEYS}
 
@@ -318,7 +318,7 @@ class Properties:
 
 
 def default_path(config_path: Path) -> Path:
-    """CODECOUNCIL_PROPERTIES, else deploy.properties beside config.toml."""
+    """MCHC_PROPERTIES, else deploy.properties beside config.toml."""
     override = os.environ.get(PROPERTIES_ENV)
     return Path(override).expanduser() if override else Path(config_path).parent / PROPERTIES_FILE
 

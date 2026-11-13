@@ -89,7 +89,7 @@ class StorageTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.cfg = Config(data_dir=str(Path(self.temp.name) / "data"),
-                          artifact_s3_uri="s3://test-bucket/output/codecouncil/")
+                          artifact_s3_uri="s3://test-bucket/output/mchc/")
         self.store = Store(self.cfg.root)
         self.s3 = FakeS3()
         self.storage = ArtifactStorage(self.cfg, self.store, self.s3)
@@ -333,7 +333,7 @@ class WorkerStorageTests(unittest.IsolatedAsyncioTestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.cfg = Config(data_dir=str(Path(self.temp.name) / "data"),
-                          artifact_s3_uri="s3://test-bucket/output/codecouncil")
+                          artifact_s3_uri="s3://test-bucket/output/mchc")
         self.worker = Worker(self.cfg)
         self.worker.storage._client = FakeS3()
         self.service = self.worker.service

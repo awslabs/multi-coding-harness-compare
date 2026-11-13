@@ -260,7 +260,7 @@ class AgentcoreSecretLeftoversTests(unittest.TestCase):
                     "Arn": "arn:aws:sts::111111111111:assumed-role/dev/x"}
                 m.get_paginator.return_value.paginate.return_value = [{"inferenceProfileSummaries": []}]
                 m.list_agent_runtimes.return_value = {"agentRuntimes": [
-                    {"agentRuntimeName": f"codecouncil_{h}"}
+                    {"agentRuntimeName": f"mchc_{h}"}
                     for h in ("claude", "codex", "kiro")]}
                 m.list_objects_v2.return_value = {
                     "Contents": [{"Key": k, "LastModified": "2025-01-01"} for k in leftovers]}
@@ -324,7 +324,7 @@ class S3FixTextTests(unittest.TestCase):
             m.client.return_value.get_paginator.return_value.paginate.return_value = [
                 {"inferenceProfileSummaries": []}]
             m.client.return_value.list_agent_runtimes.return_value = {
-                "agentRuntimes": [{"agentRuntimeName": f"codecouncil_{h}"}
+                "agentRuntimes": [{"agentRuntimeName": f"mchc_{h}"}
                                    for h in ("claude", "codex", "kiro")]}
             check.run()
         checks = {c["id"]: c for c in check.checks}

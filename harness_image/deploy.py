@@ -113,10 +113,10 @@ class DeployConfig:
         region: str,
         profile: str | None = None,
         execution_role_arn: str | None = None,
-        execution_role_name: str = "CodeCouncilBedrockAgentCoreRuntimeRole",
-        inline_policy_name: str = "CodeCouncilAgentCoreRuntime",
-        application_tag: str = "CodeCouncil",
-        runtime_name_prefix: str = "codecouncil",
+        execution_role_name: str = "MchcBedrockAgentCoreRuntimeRole",
+        inline_policy_name: str = "MchcAgentCoreRuntime",
+        application_tag: str = "Multi Coding-Harness Compare",
+        runtime_name_prefix: str = "mchc",
         workspace_mount: str = "/mnt/workspace",
         idle_session_timeout: int = 900,
         max_lifetime: int = 28800,
@@ -193,15 +193,15 @@ class DeployConfig:
             execution_role_arn=_get("AGENTCORE_EXECUTION_ROLE_ARN") or None,
             execution_role_name=(
                 _get("AGENTCORE_EXECUTION_ROLE_NAME")
-                or "CodeCouncilBedrockAgentCoreRuntimeRole"
+                or "MchcBedrockAgentCoreRuntimeRole"
             ),
             inline_policy_name=(
                 _get("AGENTCORE_INLINE_POLICY_NAME")
-                or "CodeCouncilAgentCoreRuntime"
+                or "MchcAgentCoreRuntime"
             ),
-            application_tag=_get("AGENTCORE_APPLICATION_TAG") or "CodeCouncil",
+            application_tag=_get("AGENTCORE_APPLICATION_TAG") or "Multi Coding-Harness Compare",
             runtime_name_prefix=(
-                _get("AGENTCORE_RUNTIME_NAME_PREFIX") or "codecouncil"
+                _get("AGENTCORE_RUNTIME_NAME_PREFIX") or "mchc"
             ),
             isolation=_get("AGENTCORE_ISOLATION") or "shared",
             transfer_kms_key_arn=_get("AGENTCORE_TRANSFER_KMS_KEY_ARN") or None,
@@ -598,14 +598,14 @@ async def deploy(
                 "AWS_DEFAULT_REGION": cfg.region,
                 "PYTHONUNBUFFERED": "1",
                 "LANG": "C.UTF-8",
-                "CODECOUNCIL_HARNESS": harness,
+                "MCHC_HARNESS": harness,
             }
             if harness == "claude":
                 env_vars["CLAUDE_CODE_USE_BEDROCK"] = "1"
             elif harness == "codex":
-                env_vars["CODECOUNCIL_CODEX_REGION"] = cfg.region
+                env_vars["MCHC_CODEX_REGION"] = cfg.region
             if staged_uris.get(harness):
-                env_vars["CODECOUNCIL_TOOLS_URI"] = staged_uris[harness]
+                env_vars["MCHC_TOOLS_URI"] = staged_uris[harness]
 
             resp = await asyncio.to_thread(
                 _ensure_runtime, harness, cfg, bundle_keys[harness],

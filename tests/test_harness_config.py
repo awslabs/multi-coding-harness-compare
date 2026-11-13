@@ -888,13 +888,13 @@ class ApiSubmissionConfigChoiceTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 15. codex provider env var (CODECOUNCIL_CODEX_PROVIDER)
+# 15. codex provider env var (MCHC_CODEX_PROVIDER)
 # ---------------------------------------------------------------------------
 
 class CodexProviderEnvTests(unittest.TestCase):
 
     def test_inherit_setup_sets_provider_from_configured(self):
-        """inherit_setup sets CODECOUNCIL_CODEX_PROVIDER from configured.provider."""
+        """inherit_setup sets MCHC_CODEX_PROVIDER from configured.provider."""
         import shutil
         codex_exec = shutil.which("codex") or shutil.which("echo")
         if not codex_exec:
@@ -913,7 +913,7 @@ class CodexProviderEnvTests(unittest.TestCase):
             # the hermetic-AWS fixture strips AWS_REGION from the environment.
             with patch.dict(os.environ, {"CODEX_HOME": str(src), "AWS_REGION": "us-east-1"}):
                 env, _, _ = inherit_setup("codex", configured, home)
-            self.assertEqual(env.get("CODECOUNCIL_CODEX_PROVIDER"), "amazon-bedrock-runtime")
+            self.assertEqual(env.get("MCHC_CODEX_PROVIDER"), "amazon-bedrock-runtime")
 
     def test_inherit_setup_uses_configured_region_before_boto3(self):
         """configured_region is used before the boto3 profile-region fallback."""
@@ -940,8 +940,8 @@ class CodexProviderEnvTests(unittest.TestCase):
                 mock_sess.return_value.region_name = None
                 env, _, _ = inherit_setup("codex", configured, home,
                                           configured_region="us-west-2")
-        self.assertEqual(env.get("CODECOUNCIL_CODEX_REGION"), "us-west-2")
-        self.assertEqual(env.get("CODECOUNCIL_CODEX_DEFAULT_REGION"), "us-west-2")
+        self.assertEqual(env.get("MCHC_CODEX_REGION"), "us-west-2")
+        self.assertEqual(env.get("MCHC_CODEX_DEFAULT_REGION"), "us-west-2")
 
 
 # ---------------------------------------------------------------------------

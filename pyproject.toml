@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "multi-coding-harness-compare"
-version = "0.1.0"
+version = "1.1.0"
 description = "Concurrent native coding harnesses with independent Strands evaluation"
 requires-python = ">=3.12"
 dependencies = [
@@ -21,8 +21,8 @@ dependencies = [
 
 [project.scripts]
 multi-coding-harness-compare = "arena.cli:main"
-codecouncil = "arena.cli:main"
+mchc = "arena.cli:main"
 arena = "arena.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["arena", "codecouncil", "harness_image"]
+packages = ["arena", "mchc", "harness_image"]

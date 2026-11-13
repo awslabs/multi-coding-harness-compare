@@ -47,24 +47,24 @@ class ValidateRuntimeNamePrefixTests(unittest.TestCase):
         self.validate = validate_runtime_name_prefix
 
     def test_valid_lowercase_prefix(self):
-        self.validate("codecouncil")          # must not raise
+        self.validate("mchc")          # must not raise
 
     def test_valid_mixed_case_prefix(self):
-        self.validate("CodeCouncil")          # must not raise
+        self.validate("MchcRuntime")          # must not raise
 
     def test_valid_underscore_prefix(self):
-        self.validate("testoct21_codecouncil")   # underscores allowed
+        self.validate("testoct21_mchc")   # underscores allowed
 
     def test_valid_single_letter(self):
         self.validate("A")                    # single letter — valid, short
 
     def test_hyphen_raises(self):
         with self.assertRaises(ValueError) as cm:
-            self.validate("testoct21-codecouncil")
+            self.validate("testoct21-mchc")
         msg = str(cm.exception)
         self.assertIn("invalid characters", msg)
         # Suggestion must replace hyphens with underscores
-        self.assertIn("testoct21_codecouncil", msg)
+        self.assertIn("testoct21_mchc", msg)
 
     def test_space_raises(self):
         with self.assertRaises(ValueError) as cm:
@@ -101,10 +101,10 @@ class ValidateIamRoleNameTests(unittest.TestCase):
         self.validate = validate_iam_role_name
 
     def test_valid_role_name(self):
-        self.validate("CodeCouncilBedrockAgentCoreRuntimeRole")
+        self.validate("MchcBedrockAgentCoreRuntimeRole")
 
     def test_valid_with_underscores_and_hyphens(self):
-        self.validate("testoct21_CodeCouncilBedrockAgentCoreRuntimeRole")
+        self.validate("testoct21_MchcBedrockAgentCoreRuntimeRole")
 
     def test_valid_with_plus_equals_at(self):
         self.validate("Role+=,.@-name")
@@ -140,10 +140,10 @@ class ValidateIamPolicyNameTests(unittest.TestCase):
         self.validate = validate_iam_policy_name
 
     def test_valid_policy_name(self):
-        self.validate("CodeCouncilAgentCoreRuntime")
+        self.validate("MchcAgentCoreRuntime")
 
     def test_valid_underscore(self):
-        self.validate("testoct21_CodeCouncilAgentCoreRuntime")
+        self.validate("testoct21_MchcAgentCoreRuntime")
 
     def test_valid_128_chars(self):
         self.validate("A" * 128)  # must not raise
@@ -176,7 +176,7 @@ class SetHyphenatedPrefixTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
 
     def test_hyphenated_prefix_exits_2(self):
-        code, report = preflight.inputs(self.path, ["AGENTCORE_RUNTIME_NAME_PREFIX=testoct21-codecouncil"])
+        code, report = preflight.inputs(self.path, ["AGENTCORE_RUNTIME_NAME_PREFIX=testoct21-mchc"])
         self.assertEqual(code, 2)
         self.assertIn("error", report)
         self.assertIn("invalid characters", report["error"])
@@ -189,7 +189,7 @@ class SetHyphenatedPrefixTests(unittest.TestCase):
 
     def test_valid_underscore_prefix_accepted(self):
         code, report = preflight.inputs(self.path, [
-            "AGENTCORE_RUNTIME_NAME_PREFIX=testoct21_codecouncil",
+            "AGENTCORE_RUNTIME_NAME_PREFIX=testoct21_mchc",
         ])
         # may be exit 20 (missing other keys) but NOT 2
         self.assertNotEqual(code, 2, report)
@@ -251,7 +251,7 @@ class HyphenatedPrefixConfigLoadsTests(unittest.TestCase):
         return report, {c["id"]: c for c in report["checks"]}
 
     def test_hyphenated_prefix_fails_configuration_loads_not_aws_error(self):
-        self._write_props("testoct21-codecouncil")
+        self._write_props("testoct21-mchc")
         report, checks = self._run_preflight()
         self.assertFalse(report["ok"])
         # Must be configuration-loads, NOT aws-error
@@ -261,20 +261,20 @@ class HyphenatedPrefixConfigLoadsTests(unittest.TestCase):
         self.assertEqual(c["status"], "fail")
 
     def test_hyphenated_prefix_configuration_loads_gate_is_human(self):
-        self._write_props("testoct21-codecouncil")
+        self._write_props("testoct21-mchc")
         report, checks = self._run_preflight()
         c = checks["configuration-loads"]
         self.assertEqual(c["gate"], "human", c)
 
     def test_hyphenated_prefix_fix_suggests_underscores(self):
-        self._write_props("testoct21-codecouncil")
+        self._write_props("testoct21-mchc")
         report, checks = self._run_preflight()
         c = checks["configuration-loads"]
         # Fix must mention the underscore form
-        self.assertIn("testoct21_codecouncil", c["fix"])
+        self.assertIn("testoct21_mchc", c["fix"])
 
     def test_valid_underscore_prefix_passes_configuration_loads(self):
-        self._write_props("testoct21_codecouncil")
+        self._write_props("testoct21_mchc")
         report, checks = self._run_preflight()
         self.assertEqual(checks["configuration-loads"]["status"], "pass")
 
@@ -291,7 +291,7 @@ class HyphenatedPrefixConfigLoadsTests(unittest.TestCase):
         ac = AgentCoreConfig(
             transfer_s3_uri="s3://test-bucket/test-prefix/",
             region="us-east-1",
-            runtime_name_prefix="testoct21-codecouncil",
+            runtime_name_prefix="testoct21-mchc",
         )
         cfg = Config(runtime="agentcore", agentcore=ac)
 
@@ -319,7 +319,7 @@ class HyphenatedPrefixConfigLoadsTests(unittest.TestCase):
         self.assertEqual(c["status"], "fail")
         self.assertEqual(c["gate"], "human")
         # Fix must suggest the underscore form
-        self.assertIn("testoct21_codecouncil", c["fix"])
+        self.assertIn("testoct21_mchc", c["fix"])
 
 
 # ---------------------------------------------------------------------------

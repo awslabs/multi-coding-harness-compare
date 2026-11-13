@@ -11,8 +11,8 @@ from pathlib import Path
 
 from .store import HARNESS_NAMES, now, uid
 
-OUTPUT_MARKER = ".codecouncil-output.json"
-PROJECT_METADATA = ".codecouncil"
+OUTPUT_MARKER = ".mchc-output.json"
+PROJECT_METADATA = ".mchc"
 
 
 def output_marker(directory: Path) -> dict | None:
@@ -21,7 +21,7 @@ def output_marker(directory: Path) -> dict | None:
         if directory.is_symlink() or path.is_symlink() or path.stat().st_size > 16384:
             return None
         data = json.loads(path.read_text())
-        if (isinstance(data, dict) and data.get("owner") == "CodeCouncil"
+        if (isinstance(data, dict) and data.get("owner") == "Multi Coding-Harness Compare"
                 and data.get("version") == 1 and data.get("harness") in HARNESS_NAMES):
             return data
     except (OSError, ValueError):
@@ -55,7 +55,7 @@ def _existing(destination: Path) -> dict | None:
 
 
 def _record(comparison: dict, run: dict, **fields):
-    return {"owner": "CodeCouncil", "version": 1, "harness": run["harness"],
+    return {"owner": "Multi Coding-Harness Compare", "version": 1, "harness": run["harness"],
             "comparison_id": comparison["id"], "comparison_created_at": comparison["created_at"],
             "run_id": run["id"], "spec_version": run["spec_version"], **fields}
 

@@ -91,7 +91,7 @@ class CatalogueEffortTests(unittest.IsolatedAsyncioTestCase):
             return {}
 
         rpc = Mock(call=call, notify=AsyncMock(), close=AsyncMock())
-        with patch.dict("os.environ", {"CODECOUNCIL_CODEX_DEFAULT_REGION": ""}), \
+        with patch.dict("os.environ", {"MCHC_CODEX_DEFAULT_REGION": ""}), \
              patch("arena.model_probe.RPC") as constructor:
             constructor.return_value.start = AsyncMock(return_value=rpc)
             model = (await model_probe.discover("codex"))["models"][0]
@@ -156,7 +156,7 @@ class AdapterEffortTests(unittest.IsolatedAsyncioTestCase):
                      patch("arena.adapters.kiro.version", versions), \
                      patch("arena.adapters.kiro.RPC") as constructor:
                     import os
-                    os.environ.pop("CODECOUNCIL_KIRO_CLI", None)
+                    os.environ.pop("MCHC_KIRO_CLI", None)
                     constructor.return_value.start = AsyncMock(return_value=rpc)
                     with self.assertRaises(RuntimeError):
                         await adapter.run()

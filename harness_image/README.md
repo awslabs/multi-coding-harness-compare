@@ -43,7 +43,7 @@ All inputs come from `deploy.properties` (same file as the UI app). Relevant key
 | `AWS_PROFILE` | ambient chain | AWS credentials for IAM and AgentCore API calls |
 | `AWS_REGION` | `us-east-1` | Region for AgentCore runtimes |
 | `AGENTCORE_TRANSFER_S3_URI` | required | `s3://bucket/prefix/` for deployment bundles |
-| `AGENTCORE_EXECUTION_ROLE_NAME` | `CodeCouncilBedrockAgentCoreRuntimeRole` | IAM role name |
+| `AGENTCORE_EXECUTION_ROLE_NAME` | `MchcBedrockAgentCoreRuntimeRole` | IAM role name |
 | `AGENTCORE_TRANSFER_KMS_KEY_ARN` | unset | KMS key ARN for SSE-KMS on the transfer bucket |
 | `USER_NAMESPACE` | unset | Suffix for per-user isolation (`AGENTCORE_ISOLATION=per-user`) |
 | `CLAUDE_HARNESS_SOURCE` | `pinned` | `pinned` / `installed` / `latest` |

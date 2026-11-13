@@ -21,12 +21,12 @@ class AgentCoreConfig(BaseModel):
     region: str | None = None
     profile: str | None = None
     execution_role_arn: str | None = None
-    execution_role_name: str = "CodeCouncilBedrockAgentCoreRuntimeRole"
+    execution_role_name: str = "MchcBedrockAgentCoreRuntimeRole"
     # Names baked into deployed resources; the defaults are what existing deployments use.
-    inline_policy_name: str = "CodeCouncilAgentCoreRuntime"
-    application_tag: str = "CodeCouncil"
+    inline_policy_name: str = "MchcAgentCoreRuntime"
+    application_tag: str = "Multi Coding-Harness Compare"
     transfer_s3_uri: str | None = None
-    runtime_name_prefix: str = "codecouncil"
+    runtime_name_prefix: str = "mchc"
     workspace_mount: str = "/mnt/workspace"
     idle_session_timeout: int = 900
     max_lifetime: int = 28800
@@ -43,12 +43,12 @@ class AgentCoreConfig(BaseModel):
     # refuses to create its PATH alias helpers under a HOME it considers temporary
     # ("Refusing to create helper binaries under temporary dir"), and /tmp trips that
     # check. `agentcore-probe` reports the live numbers.
-    job_root: str = "/var/tmp/codecouncil"
+    job_root: str = "/var/tmp/mchc"
     # Durable cache on the sessionStorage mount. It survives a cold microVM and is reset
     # only after 14 days without an invoke or on a runtime version update, which makes it
     # right for large re-downloadable payloads (the staged Kiro tools tree) and wrong for
     # anything needing file locks — SQLite there fails with "database is locked".
-    cache_dir: str = "codecouncil-cache"
+    cache_dir: str = "mchc-cache"
     python_runtime: str = "PYTHON_3_12"
     entry_point: list[str] = Field(default_factory=lambda: ["main.py"])
     session_activation: bool = True
@@ -139,7 +139,7 @@ class HarnessConfig(BaseModel):
     mcp_config: str | None = None
     # S3 prefix synced read-only into each run's HOME config dir.
     config_s3_uri: str | None = None
-    # Provider string for Codex (maps to CODECOUNCIL_CODEX_PROVIDER); other harnesses ignore it.
+    # Provider string for Codex (maps to MCHC_CODEX_PROVIDER); other harnesses ignore it.
     provider: str | None = None
 
     @model_validator(mode="after")
@@ -316,7 +316,7 @@ class Config(BaseModel):
 
 
 def config_path() -> Path:
-    return Path(os.environ.get("CODECOUNCIL_CONFIG", os.environ.get("ARENA_CONFIG", "config.toml")))
+    return Path(os.environ.get("MCHC_CONFIG", os.environ.get("ARENA_CONFIG", "config.toml")))
 
 
 def resolve_config(path: Path | None = None, properties_path: Path | None = None,
@@ -356,18 +356,18 @@ def resolve_config(path: Path | None = None, properties_path: Path | None = None
                         node = node.setdefault(part, {})
                     node[leaf] = _aws_region_env
                     bound[dotted] = "AWS_REGION"  # mark as env-var-sourced for the report
-    # Fill harnesses.codex.provider from CODECOUNCIL_CODEX_PROVIDER env var when
+    # Fill harnesses.codex.provider from MCHC_CODEX_PROVIDER env var when
     # CODEX_PROVIDER is absent from deploy.properties and not a literal in config.toml.
     # The properties.py CODEX_PROVIDER doc promises this fallback; this block honours it.
     _codex_provider_dotted = "harnesses.codex.provider"
     if _codex_provider_dotted not in bound:
         _present_explicit, _ = props_module._leaf(explicit, _codex_provider_dotted)
         if not _present_explicit:
-            _codex_provider_env = os.environ.get("CODECOUNCIL_CODEX_PROVIDER")
+            _codex_provider_env = os.environ.get("MCHC_CODEX_PROVIDER")
             if _codex_provider_env:
                 node = defaults.setdefault("harnesses", {}).setdefault("codex", {})
                 node["provider"] = _codex_provider_env
-                bound[_codex_provider_dotted] = "env:CODECOUNCIL_CODEX_PROVIDER"
+                bound[_codex_provider_dotted] = "env:MCHC_CODEX_PROVIDER"
     merged = props_module.deep_merge(defaults, explicit)
     if "harnesses" in defaults:
         # A harness config.toml leaves out entirely still gets its built-in defaults

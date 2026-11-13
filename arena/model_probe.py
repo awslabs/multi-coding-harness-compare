@@ -15,7 +15,7 @@ async def mantle_models(region):
     import httpx
     from botocore.auth import SigV4Auth
     from botocore.awsrequest import AWSRequest
-    session = boto3.Session(profile_name=os.environ.get("CODECOUNCIL_CODEX_AWS_PROFILE"),
+    session = boto3.Session(profile_name=os.environ.get("MCHC_CODEX_AWS_PROFILE"),
                             region_name=region)
     request = AWSRequest(method="GET", url=f"https://bedrock-mantle.{region}.api.aws/v1/models")
     SigV4Auth(session.get_credentials().get_frozen_credentials(), "bedrock-mantle", region).add_auth(request)
@@ -37,7 +37,7 @@ async def discover(harness):
     if harness == "claude":
         from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
         options = ClaudeAgentOptions(
-            cli_path=os.environ.get("CODECOUNCIL_CLAUDE_CLI"),
+            cli_path=os.environ.get("MCHC_CLAUDE_CLI"),
             cwd=os.getcwd(), setting_sources=["user"], mcp_servers={},
             allowed_tools=[], max_turns=1,
         )
@@ -53,7 +53,7 @@ async def discover(harness):
     command = codex_command("app-server") if harness == "codex" else ["kiro-cli", "acp"]
     rpc = await RPC(command, reject_request, ignore_notification).start()
     try:
-        client = {"name": "codecouncil", "version": "0.1.0"}
+        client = {"name": "mchc", "version": "1.1.0"}
         if harness == "codex":
             await rpc.call("initialize", {"clientInfo": client,
                 "capabilities": {"experimentalApi": True}}, 60)
@@ -73,9 +73,9 @@ async def discover(harness):
                 cursor = page.get("nextCursor")
                 if not cursor:
                     break
-            region = os.environ.get("CODECOUNCIL_CODEX_DEFAULT_REGION")
+            region = os.environ.get("MCHC_CODEX_DEFAULT_REGION")
             if region:
-                routes = json.loads(os.environ.get("CODECOUNCIL_CODEX_MODEL_REGIONS", "{}"))
+                routes = json.loads(os.environ.get("MCHC_CODEX_MODEL_REGIONS", "{}"))
                 regions = sorted({region, *(routes.get(m["id"], region) for m in models)})
                 available = dict(zip(regions, await asyncio.gather(*(mantle_models(r) for r in regions)), strict=True))
                 models = [{**m, "region": routes.get(m["id"], region),

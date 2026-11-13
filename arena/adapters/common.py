@@ -42,13 +42,13 @@ def session_missing(exc: Exception) -> bool:
 
 
 def codex_command(*arguments, executable=None):
-    command = [executable or os.environ.get("CODECOUNCIL_CODEX_CLI", "codex")]
-    region = os.environ.get("CODECOUNCIL_CODEX_REGION")
+    command = [executable or os.environ.get("MCHC_CODEX_CLI", "codex")]
+    region = os.environ.get("MCHC_CODEX_REGION")
     if region:
         # The override must name the provider the HOME configuration actually selects, or it
         # silently applies to nothing. Codex ships two: amazon-bedrock (mantle endpoint) and
         # amazon-bedrock-runtime (bedrock-runtime endpoint).
-        provider = os.environ.get("CODECOUNCIL_CODEX_PROVIDER", "amazon-bedrock")
+        provider = os.environ.get("MCHC_CODEX_PROVIDER", "amazon-bedrock")
         command += ["-c", f"model_providers.{provider}.aws.region=" + json.dumps(region)]
     return [*command, *arguments]
 

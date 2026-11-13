@@ -92,7 +92,7 @@ class ClaudeAdapter:
                                       ResultMessage, SystemMessage)
         config = self.turn["config"]
         options = ClaudeAgentOptions(
-            cli_path=os.environ.get("CODECOUNCIL_CLAUDE_CLI") or config.get("cli_path"),
+            cli_path=os.environ.get("MCHC_CLAUDE_CLI") or config.get("cli_path"),
             cwd=self.turn.get("workspace", "/workspace"), model=config.get("model"), resume=self.turn.get("session_id"),
             system_prompt={"type": "preset", "preset": "claude_code"},
             setting_sources=["user", "project", "local"],
