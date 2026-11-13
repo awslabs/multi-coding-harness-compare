@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "multi-coding-harness-compare"
-version = "1.2.0"
+version = "1.2.1"
 description = "Concurrent native coding harnesses with independent Strands evaluation"
 requires-python = ">=3.12"
 dependencies = [
@@ -14,7 +14,7 @@ dependencies = [
   "strands-agents-evals==1.2.0",
   "strands-agents==1.55.1",
   "claude-agent-sdk==0.2.152",
-  "mcp==1.26.0",
+  "mcp==1.30.0",
   "httpx==0.28.1",
   "defusedxml==0.7.1",
 ]

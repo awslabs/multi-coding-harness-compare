@@ -141,7 +141,7 @@ class KiroAdapter:
         try:
             result = await self.rpc.call("initialize", {"protocolVersion": 1,
                 "clientCapabilities": {},
-                "clientInfo": {"name": "mchc", "version": "1.2.0"}}, setup_seconds)
+                "clientInfo": {"name": "mchc", "version": "1.2.1"}}, setup_seconds)
             emit("capabilities", result)
             servers = [{"name": "arena", **BRIDGE_SERVER,
                         "env": [{"name": key, "value": value} for key, value in BRIDGE_SERVER["env"].items()]}]

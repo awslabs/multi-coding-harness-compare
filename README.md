@@ -538,7 +538,7 @@ Run `multi-coding-harness-compare agentcore-deploy` once to build and register t
 The provisioner builds a per-harness `deployment_package.zip` using S3 direct code deployment — no Docker, no ECR. Each zip contains:
 
 - `main.py`: a minimal HTTP health-check server that satisfies AgentCore's readiness contract. All real harness work arrives through `InvokeAgentRuntimeCommand`, not HTTP.
-- Vendored Python wheels for `boto3==1.43.92` and `mcp==1.26.0` (and `claude-agent-sdk==0.2.152` for the claude harness), compiled for `aarch64-manylinux2014` Python 3.12 using `uv pip install --python-platform aarch64-manylinux2014 --only-binary=:all:`.
+- Vendored Python wheels for `boto3==1.43.92` and `mcp==1.30.0` (and `claude-agent-sdk==0.2.152` for the claude harness), compiled for `aarch64-manylinux2014` Python 3.12 using `uv pip install --python-platform aarch64-manylinux2014 --only-binary=:all:`.
 - For **claude**: the `claude-agent-sdk` wheel ships `claude_agent_sdk/_bundled/claude`; the bundle carries the whole wheel.
 - For **codex**: `npm pack @openai/codex@0.154.0-linux-arm64` produces a tarball containing `package/vendor/aarch64-unknown-linux-musl/`; the provisioner extracts that vendor tree into the zip.
 - For **kiro**: the Kiro CDN download is 596 MB; only the `kirocli/bin/kiro-cli*` entries are needed. The provisioner downloads the CDN zip, extracts those binaries, then measures zipped and unzipped sizes against 80% of the hard 250 MB / 750 MB AgentCore ceilings. When the binaries fit, they are vendored into the zip. When they do not, the provisioner stages them as a gzip tarball at `tools/kiro-<version>.tar.gz` under the S3 prefix and the in-VM supervisor fetches and caches them on first use in the session. The log records which path was chosen.

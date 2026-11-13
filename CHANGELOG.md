@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.2.1 — 2026-11-13
+
+For full details see [docs/releases/v1.2.1.md](docs/releases/v1.2.1.md).
+
+### Security
+
+- `mcp` 1.26.0 → 1.30.0, the latest 1.x release. It fixes seven advisories in the MCP Python SDK (three high,
+  four moderate): GHSA-hvrp-rf83-w775, GHSA-jpw9-pfvf-9f58, GHSA-vj7q-gjh5-988w, GHSA-5h93-6whr-6q8j,
+  GHSA-84m7-p3x7-pcfv, GHSA-rwrf-2pqf-9j8j and GHSA-w4fh-qvv9-3v23. No other dependency changes.
+
+### Upgrading
+
+- Re-run `./bootstrap.sh` after pulling, so the workstation reinstalls from `requirements.lock`.
+- AgentCore runtimes keep the `mcp` version they were deployed with until you redeploy them with
+  `./bootstrap.sh --deploy`.
+
 ## v1.2.0 — 2026-11-13
 
 For full details see [docs/releases/v1.2.0.md](docs/releases/v1.2.0.md).

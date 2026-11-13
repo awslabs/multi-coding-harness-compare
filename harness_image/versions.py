@@ -17,7 +17,7 @@ CODEX_VERSION: str = "0.154.0"
 CODEX_PACKAGE: str = f"@openai/codex@{CODEX_VERSION}-linux-arm64"
 
 # MCP Python SDK (required by all harnesses)
-MCP_VERSION: str = "1.26.0"
+MCP_VERSION: str = "1.30.0"
 
 # Kiro CLI
 KIRO_VERSION: str = "2.21.3"
