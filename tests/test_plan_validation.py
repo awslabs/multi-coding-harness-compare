@@ -152,7 +152,8 @@ class RecoveryTests(unittest.IsolatedAsyncioTestCase):
         comparison = worker.service.create("Public behavior")
         from arena.test_review import requirements_digest
         self.review["requirements_sha256"] = requirements_digest(comparison)
-        live_review = {**self.review, "status": "approved",
+        # plan_sha256 must be set so approved_plan() uses the legacy (prepare_plan) path.
+        live_review = {**self.review, "status": "approved", "plan_sha256": "legacy-forced",
                        "generation_retry_requested_at": 13, "generation_attempts": [self.attempt]}
         worker.store.update("comparison", comparison["id"], test_review=live_review)
         async def prepare(task, *_):
@@ -161,8 +162,11 @@ class RecoveryTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(task["approved_test_review"]["approval_sha256"], self.review["approval_sha256"])
             return recover_reviewed_plan(self.task, self.cfg)
         with patch("arena.worker.prepare_plan", side_effect=prepare):
-            plan, metadata, approval = await asyncio.wait_for(
+            result = await asyncio.wait_for(
                 worker.approved_plan(comparison["id"], self.root / "baseline", comparison, lambda: False), 3)
+        # approved_plan() now returns a dict; callers check result["_new_flow"].
+        self.assertFalse(result["_new_flow"])
+        plan, metadata, approval = result["plan"], result["metadata"], result["review"]
         self.assertEqual(approval["approved_at"], 10)
         self.assertEqual(plan.review_id, "review")
         self.assertFalse(metadata["recovered_draft"]["new_model_call"])

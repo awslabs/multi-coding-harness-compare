@@ -18,6 +18,10 @@ active_seconds = 1800
 setup_seconds = 180
 check_seconds = 180
 max_turns = 80
+# Test-stage settings (harness-written-tests flow, planning_model required).
+test_active_seconds = 3600 # harness's own active time across all test-stage turns;
+                           # does NOT include the test agent review, sandbox runs, or waiting.
+test_fix_rounds = 2        # app-driven follow-up turns after the write turn.
 memory = "2g"
 pids = 256
 max_parallel_comparisons = 10 # each comparison still runs all three harnesses concurrently

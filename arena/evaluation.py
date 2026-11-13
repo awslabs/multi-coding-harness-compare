@@ -26,7 +26,7 @@ from .evaluation_paths import prepare_check_command, pytest_setup_error
 from .isolation import copy_tree, make_writable, manifest, tree_hash
 
 RUBRIC_VERSION = "implementation-rubric-1"
-EVALUATOR_VERSION = "9"
+EVALUATOR_VERSION = "10"
 GROUP_WEIGHTS = {"acceptance": .50, "regression": .25, "candidate": .10, "project": .15}
 # Transport-level stall guard for the planner, not a planning budget: see judge_model.
 PLANNING_STALL_SECONDS = 900
@@ -840,7 +840,21 @@ def inspect_candidate_source(candidate: dict) -> dict:
     return review
 
 
-def assess_accuracy(plan: dict, evidence: dict, source_review: dict) -> dict:
+def assess_accuracy(plan: dict, evidence: dict, source_review: dict,
+                    *, ratings: dict | None = None) -> dict:
+    """Score accuracy criteria against executed check results.
+
+    Parameters
+    ----------
+    plan:          Frozen plan dict (from Plan.model_dump()).
+    evidence:      CandidateTestRunner result dict with 'checks' list.
+    source_review: Static source review from inspect_candidate_source().
+    ratings:       Optional per-scenario ratings dict {scenario_id: float}.
+                   When provided (new harness-written-tests flow), each criterion's
+                   effective score is multiplied by its scenario's rating, and a
+                   criterion is "met" only when both all checks pass AND rating == 1.
+                   When None (legacy/supplied plans), scoring is unchanged.
+    """
     checks = {c["id"]: c for c in evidence.get("checks", [])}
     plan_gaps = list(plan.get("gaps", []))
     criteria, numerator, denominator, incomplete = [], 0., 0., bool(plan_gaps)
@@ -848,18 +862,46 @@ def assess_accuracy(plan: dict, evidence: dict, source_review: dict) -> dict:
         refs = c["check_ids"]
         relevant = [checks.get(ref) for ref in refs]
         independently_grounded = any(r and r["group"] == "acceptance" for r in relevant)
-        unavailable = not refs or not independently_grounded or any(
-            r is None or r["status"] in ("not_run", "infrastructure_error")
-            or (r.get("counts", {}).get("skipped") or 0) > 0 for r in relevant)
+        # C7 (§9.15): with ratings present, a rating-0 scenario's skipped checks make
+        # the criterion unmet (not unavailable).  Only check for unavailability when
+        # the scenario has a non-zero rating (or we're in legacy mode).
+        criterion_rating = ratings.get(c["id"], 0) if ratings is not None else None
+        skip_unavailable_for_rating_zero = (ratings is not None and criterion_rating == 0)
+        if skip_unavailable_for_rating_zero:
+            # Rating is 0 → criterion is unmet regardless of check status; no incomplete flag
+            unavailable = False
+        else:
+            unavailable = not refs or not independently_grounded or any(
+                r is None or r["status"] in ("not_run", "infrastructure_error")
+                or (r.get("counts", {}).get("skipped") or 0) > 0 for r in relevant)
         if unavailable:
             attainment, status = None, "unverified"
             incomplete = True
+            effective = 0.
+        elif skip_unavailable_for_rating_zero:
+            # rating == 0, skipped checks → unmet (not incomplete)
+            attainment, status = 0, "unmet"
+            effective = 0.
         else:
             passed = sum(r["status"] == "passed" for r in relevant)
-            attainment = 1 if passed == len(relevant) else .5 if passed else 0
-            status = "met" if attainment == 1 else "partially_met" if attainment == .5 else "unmet"
+            raw_attainment = 1 if passed == len(relevant) else .5 if passed else 0
+            if ratings is not None:
+                # Criterion id == scenario id (set by compile_reviewed_tests)
+                rating = criterion_rating  # already looked up above
+                effective = raw_attainment * rating
+                # "met" only when rating==1 AND all checks pass (effective==1)
+                if effective >= 1.0:
+                    attainment, status = 1, "met"
+                elif effective > 0:
+                    attainment, status = effective, "partially_met"
+                else:
+                    attainment, status = 0, "unmet"
+            else:
+                attainment = raw_attainment
+                effective = float(raw_attainment)
+                status = "met" if attainment == 1 else "partially_met" if attainment == .5 else "unmet"
         denominator += c["weight"]
-        numerator += c["weight"] * (attainment or 0)
+        numerator += c["weight"] * effective
         criteria.append({**c, "status": status, "attainment": attainment, "evidence": refs,
             "code_evidence": [f["reference"] for f in source_review["files"]],
             "explanation": ("No sufficient independent acceptance evidence; code review alone cannot establish correctness."
@@ -870,7 +912,26 @@ def assess_accuracy(plan: dict, evidence: dict, source_review: dict) -> dict:
             "critical_failure": any(c["critical"] and c["status"] != "met" for c in criteria)}
 
 
-def assess_tests(plan: dict, evidence: dict) -> dict:
+def assess_tests(plan: dict, evidence: dict, *, ratings: dict | None = None) -> dict:
+    """Score test results against plan groups.
+
+    Parameters
+    ----------
+    plan:     Frozen plan dict.
+    evidence: CandidateTestRunner result dict.
+    ratings:  Optional per-scenario ratings dict {scenario_id: float}.
+              When provided, each check's effective score is multiplied by its
+              scenario's rating (looked up via plan['review_coverage']).
+              When None, scoring is unchanged (legacy/supplied plans).
+    """
+    # Build check_id -> scenario rating mapping when ratings are provided
+    check_ratings: dict[str, float] = {}
+    if ratings is not None:
+        for scenario_id, check_ids in plan.get("review_coverage", {}).items():
+            rating = ratings.get(scenario_id, 0)
+            for cid in (check_ids or []):
+                check_ratings[cid] = rating
+
     groups, gaps, numerator, denominator = {}, [], 0., 0.
     mandatory_failure = False
     excluded = plan.get("excluded_groups", {})
@@ -901,8 +962,15 @@ def assess_tests(plan: dict, evidence: dict) -> dict:
                 value = counts["passed"] / sum(count_values) if c["exit_code"] == 0 else 0
             else:
                 value = 1 if c["exit_code"] == 0 else 0
-            if c["mandatory"] and (value < 1 or c["status"] != "passed"):
+            # C6 (§9.15): mandatory_failure uses the raw sandbox result, not the rated value.
+            # A passing check of a scenario rated 0.5 or 0 is not a mandatory failure;
+            # only its contribution is reduced.
+            raw_pass = (c.get("exit_code") == 0 and c.get("status") == "passed")
+            if c["mandatory"] and not raw_pass:
                 mandatory_failure = True
+            # Apply rating multiplier when ratings are provided
+            if ratings is not None:
+                value = value * check_ratings.get(c["id"], 0)
             group_score += value * c["weight"]
             group_weight += c["weight"]
         groups[group] = 100 * group_score / group_weight
@@ -919,8 +987,10 @@ def assess_tests(plan: dict, evidence: dict) -> dict:
 class TaskAccuracyEvaluator(Evaluator[dict, dict]):
     def evaluate(self, evaluation_case: EvaluationData[dict, dict]) -> list[EvaluationOutput]:
         candidate = evaluation_case.actual_output
+        # ratings is injected into Case input by evaluate_candidate for new-flow comparisons
+        ratings = evaluation_case.input.get("ratings")  # None → legacy scoring
         result = assess_accuracy(evaluation_case.input["plan"], candidate["evidence"],
-                                 inspect_candidate_source(candidate))
+                                 inspect_candidate_source(candidate), ratings=ratings)
         return [EvaluationOutput(score=(result["score"] or 0)/100,
             test_pass=result["complete"] and not result["critical_failure"],
             label="complete" if result["complete"] else "unavailable",
@@ -929,7 +999,10 @@ class TaskAccuracyEvaluator(Evaluator[dict, dict]):
 
 class TestResultsEvaluator(Evaluator[dict, dict]):
     def evaluate(self, evaluation_case: EvaluationData[dict, dict]) -> list[EvaluationOutput]:
-        result = assess_tests(evaluation_case.input["plan"], evaluation_case.actual_output["evidence"])
+        ratings = evaluation_case.input.get("ratings")  # None → legacy scoring
+        result = assess_tests(evaluation_case.input["plan"],
+                              evaluation_case.actual_output["evidence"],
+                              ratings=ratings)
         return [EvaluationOutput(score=(result["score"] or 0)/100,
             test_pass=result["complete"] and not result["mandatory_failure"],
             label="complete" if result["complete"] else "unavailable",
@@ -1107,12 +1180,156 @@ async def request_judge(request: dict, config: Config, progress=None):
 
 
 async def evaluate_candidate(task: dict, plan: Plan, candidate: dict, config: Config, *,
+                             ratings: dict | None = None,
+                             no_manifest_reason: str | None = None,
+                             incomplete_reason: str | None = None,
                              recorded_judge: dict | None = None, judge_progress=None) -> dict:
-    """The Experiment callback returns stored artifacts, never development work."""
+    """The Experiment callback returns stored artifacts, never development work.
+
+    Parameters
+    ----------
+    ratings:            Optional per-scenario ratings {scenario_id: float} from the
+                        test agent review.  None → legacy scoring (unchanged).
+    no_manifest_reason: C8 (interface 1): harness failed to produce a valid manifest.
+                        accuracy and tests scores are forced to 0 with this reason;
+                        relevance is still judged and overall is always numeric
+                        (relevance counted as 0 when the judge is unavailable) →
+                        failed evaluation status.
+    incomplete_reason:  C8 (interface 1): infrastructure prevented the test stage or
+                        the test agent review failed → accuracy None, tests None →
+                        evaluated_incomplete; the reason is added to evaluation gaps.
+                        Relevance is still judged and shown.
+    """
     frozen_plan = plan.model_dump()
+    plan_rubric = getattr(plan, "rubric_version", RUBRIC_VERSION)
+
+    if incomplete_reason is not None:
+        # C8: infrastructure failure → accuracy and tests are None → evaluated_incomplete
+        accuracy = {
+            "score": None, "verified_lower_bound": None, "complete": False,
+            "criteria": [], "gaps": [incomplete_reason],
+            "source_review": inspect_candidate_source(candidate),
+            "critical_failure": False,
+        }
+        tests = {
+            "score": None, "groups": {g: None for g in GROUP_WEIGHTS},
+            "weights": plan.group_weights,
+            "gaps": [incomplete_reason], "excluded_groups": {},
+            "effective_weights": {g: 0.0 for g in GROUP_WEIGHTS},
+            "mandatory_failure": False, "complete": False,
+        }
+        # Still run relevance judge on the implementation diff
+        relevance = None
+        judge_error = None
+        judge_raw = None
+        judge_attempts = []
+        judge_references = []
+        request = judge_request(task, plan, candidate)
+        request_hash = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()
+        if config.judge_model:
+            try:
+                result, judge_attempts, judge_error = await request_judge(
+                    request, config, judge_progress)
+                if result:
+                    result, judge_references = validate_judge_response(result, candidate["files"])
+                    judge_raw = [r.model_dump() for r in result]
+                    relevance = result[0].score * 100
+                elif judge_error is None:
+                    judge_error = "Judge returned no evaluation output."
+            except Exception as exc:
+                judge_error = str(exc) or type(exc).__name__
+        else:
+            judge_error = "No Strands judge model configured."
+        # overall is None (accuracy/tests are None)
+        return {
+            "accuracy": accuracy,
+            "relevance": {"score": relevance, "raw": judge_raw,
+                          "gap": judge_error, "evidence_files": judge_references},
+            "tests": tests, "overall": None, "verified_complete": False,
+            "limitations": plan.limitations,
+            "weights": {"accuracy": .45, "relevance": .20, "tests": .35},
+            "raw_strands_report": None, "rubric_version": plan_rubric,
+            "evaluator_version": EVALUATOR_VERSION,
+            "strands_evals_version": "1.2.0",
+            "judge": {"model": config.judge_model, "profile": config.judge_profile,
+                      "region": config.judge_region, "rubric": RELEVANCE_RUBRIC,
+                      "request_sha256": request_hash,
+                      "recorded_response_reused": False,
+                      "attempts": judge_attempts, "timeout_seconds": config.judge_seconds,
+                      "max_attempts": config.judge_max_attempts,
+                      "response_validation": "score-and-file-references-v1",
+                      "usage": None, "usage_completeness": "unavailable",
+                      "usage_note": "OutputEvaluator does not expose judge usage; excluded from coding usage."},
+            "scope": "Only listed requirements and executed checks were verified; no claim covers all possible behavior.",
+        }
+
+    if no_manifest_reason is not None:
+        # Harness failed to produce a valid manifest; accuracy and tests are 0 (not incomplete).
+        accuracy = {
+            "score": 0, "verified_lower_bound": 0, "complete": True,
+            "criteria": [], "gaps": [no_manifest_reason],
+            "source_review": inspect_candidate_source(candidate),
+            "critical_failure": True,
+        }
+        tests = {
+            "score": 0, "groups": {g: None for g in GROUP_WEIGHTS},
+            "weights": plan.group_weights,
+            "gaps": [no_manifest_reason], "excluded_groups": {},
+            "effective_weights": {g: 0.0 for g in GROUP_WEIGHTS},
+            "mandatory_failure": False, "complete": True,
+        }
+        # Still run relevance judge on the implementation diff
+        relevance = None
+        judge_error = None
+        judge_raw = None
+        judge_attempts = []
+        judge_references = []
+        request = judge_request(task, plan, candidate)
+        request_hash = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()
+        if config.judge_model:
+            try:
+                result, judge_attempts, judge_error = await request_judge(
+                    request, config, judge_progress)
+                if result:
+                    result, judge_references = validate_judge_response(result, candidate["files"])
+                    judge_raw = [r.model_dump() for r in result]
+                    relevance = result[0].score * 100
+                elif judge_error is None:
+                    judge_error = "Judge returned no evaluation output."
+            except Exception as exc:
+                judge_error = str(exc) or type(exc).__name__
+        else:
+            judge_error = "No Strands judge model configured."
+        # C8: overall is always numeric; relevance counted as 0 if judge unavailable
+        relevance_for_overall = relevance if relevance is not None else 0.0
+        overall = .45 * 0 + .20 * relevance_for_overall + .35 * 0
+        verified = False
+        return {
+            "accuracy": accuracy,
+            "relevance": {"score": relevance, "raw": judge_raw,
+                          "gap": judge_error, "evidence_files": judge_references},
+            "tests": tests, "overall": overall, "verified_complete": verified,
+            "limitations": plan.limitations,
+            "weights": {"accuracy": .45, "relevance": .20, "tests": .35},
+            "raw_strands_report": None, "rubric_version": plan_rubric,
+            "evaluator_version": EVALUATOR_VERSION,
+            "strands_evals_version": "1.2.0",
+            "judge": {"model": config.judge_model, "profile": config.judge_profile,
+                      "region": config.judge_region, "rubric": RELEVANCE_RUBRIC,
+                      "request_sha256": request_hash,
+                      "recorded_response_reused": False,
+                      "attempts": judge_attempts, "timeout_seconds": config.judge_seconds,
+                      "max_attempts": config.judge_max_attempts,
+                      "response_validation": "score-and-file-references-v1",
+                      "usage": None, "usage_completeness": "unavailable",
+                      "usage_note": "OutputEvaluator does not expose judge usage; excluded from coding usage."},
+            "scope": "Only listed requirements and executed checks were verified; no claim covers all possible behavior.",
+        }
+
     case = Case(name="anonymous-implementation", input={
         "task": task["prompt"], "shared_answers": task.get("answers", []),
         "specification_version": task["spec_version"], "plan": frozen_plan,
+        "ratings": ratings,  # None for legacy; dict for new-flow
         "repository_context": candidate.get("repository_context", [])})
     experiment = Experiment(cases=[case], evaluators=[TaskAccuracyEvaluator(), TestResultsEvaluator()])
     # A dictionary is interpreted by Strands as TaskOutput, so candidate
@@ -1172,7 +1389,7 @@ async def evaluate_candidate(task: dict, plan: Plan, candidate: dict, config: Co
             "tests": tests, "overall": overall, "verified_complete": verified,
             "limitations": plan.limitations,
             "weights": {"accuracy": .45, "relevance": .20, "tests": .35},
-            "raw_strands_report": raw, "rubric_version": RUBRIC_VERSION, "evaluator_version": EVALUATOR_VERSION,
+            "raw_strands_report": raw, "rubric_version": plan_rubric, "evaluator_version": EVALUATOR_VERSION,
             "strands_evals_version": "1.2.0",
             "judge": {"model": config.judge_model, "profile": config.judge_profile,
                       "region": config.judge_region, "rubric": RELEVANCE_RUBRIC,

@@ -176,7 +176,7 @@ class RunnerEvidenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(str(self.root / "evidence/acceptance/test_behavior.py"), commands[-1])
         self.assertIn("--junitxml=", commands[0])
         self.assertEqual(check["command"], plan.checks[0].command)
-        self.assertEqual(result["environment"]["evaluator_version"], "9")
+        self.assertEqual(result["environment"]["evaluator_version"], "10")
 
     async def test_genuine_assertion_failure_retains_junit_cases_and_failed_status(self):
         result, _ = await self.run_check(self.plan(), 1,

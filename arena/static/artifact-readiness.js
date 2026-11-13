@@ -19,9 +19,15 @@ globalThis.artifactReadiness = (() => {
       const comparisonStatus = comparison?.status, review = comparison?.test_review;
       const queued = comparisonStatus === "queued" || comparisonStatus?.endsWith("_queued");
       const planning = ["planning","waiting_test_review","reviewing_tests"].includes(comparisonStatus);
+      // New-flow: approved + no frozen shared plan + not actively generating executable tests.
+      const newFlowActive = review?.status === "approved" && !review.plan_sha256 && review?.generation_status !== "generating";
       const activity = planning && ["queued","drafting"].includes(review?.status) ?
-        "Preparing test cases" : planning && review?.status === "approved" && !review.plan_sha256 ?
-        "Developing approved tests" : comparisonStatus === "waiting_user" ? "Awaiting your answer" :
+        "Preparing test cases" :
+        planning && review?.status === "approved" && !review.plan_sha256 && !newFlowActive ?
+        "Developing approved tests" :
+        comparisonStatus === "reviewing_tests" && newFlowActive ? "Reviewing harness tests" :
+        (comparisonStatus === "testing" || (planning && newFlowActive)) ? "Writing harness tests" :
+        comparisonStatus === "waiting_user" ? "Awaiting your answer" :
         comparisonStatus === "waiting_approval" ? "Awaiting harness approval" :
         `Comparison ${queued ? "queued" : "running"}`;
       return `<div class="readiness-heading"><h2>S3 check complete</h2><span>${escape(activity)}</span></div>

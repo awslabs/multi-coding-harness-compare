@@ -96,6 +96,7 @@ td .evaluation-scope-note{margin-top:5px;max-width:180px;font-size:10px}
 .panel-fail-strip{padding:6px 17px;background:#221a11;border-bottom:1px solid #3d2f1a;font-size:11px;color:#d4a878;white-space:normal;line-height:1.5}
 .panel-fail-strip a,.test-fail-cause a{color:#d4a878;text-decoration:underline;text-underline-offset:2px}
 .test-fail-cause{display:block;font-size:10px;color:#d4a878;margin-top:4px;white-space:normal;overflow-wrap:anywhere}
+.test-stage-stop-reason{color:#edc89a;font-size:13px;margin:6px 0;overflow-wrap:anywhere}
 .test-review-failure{background:#221a10;border:1px solid #614830;border-radius:7px;padding:14px 17px;margin:14px 0}
 .test-review-failure p{color:#c9a97d}.trf-cause{color:#edc89a;font-size:13px}
 .trf-error{max-height:140px;color:#d4a878;background:#1a1208;border:1px solid #3d3020}
@@ -103,3 +104,4 @@ td .evaluation-scope-note{margin-top:5px;max-width:180px;font-size:10px}
 .trf-attempt p{margin:4px 0}
 @keyframes failure-pop{0%,100%{outline:0 solid transparent}35%{outline:3px solid #e8a96a;outline-offset:3px}}
 .failure-highlight{animation:failure-pop 1.6s ease}
+.auto-locked-badge{font-size:9px;color:#768498;border:1px solid #2d3c50;border-radius:3px;padding:1px 5px;letter-spacing:.3px;vertical-align:middle}

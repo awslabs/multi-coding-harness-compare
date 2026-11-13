@@ -55,18 +55,36 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         self.gates = {}
         self.w.runtime.cleanup_owned = AsyncMock()
 
-        async def phase(rid, phase, c, plan):
+        async def phase(rid, phase, c, plan, **kwargs):
             self.calls[c["id"], phase] += 1
-            self.s.transition(rid, "clarifying" if phase == "clarify" else "developing",
-                              spec_version=c["spec_version"])
             if phase == "clarify":
+                self.s.transition(rid, "clarifying", spec_version=c["spec_version"])
                 self.s.update("run", rid, clarified=True)
                 return "ready"
-            if c["id"] in self.gates:
-                await self.gates[c["id"]].wait()
             root = self.w.run_root(self.s.get("run", rid)) / "workspace"
             root.mkdir(parents=True, exist_ok=True)
             (root / "main.py").write_text("print('Hello')\n")
+            if phase in ("test", "repair", "fix"):
+                from arena.harness_tests import MANIFEST_NAME
+                import json as _json
+                _manifest = {
+                    "version": 1,
+                    "checks": [{"id": "cli", "scenario_id": "hello", "command": "python -m pytest tests/test_cli.py -q", "junit": None}],
+                    "test_files": ["tests/test_cli.py"],
+                    "python_requirements": [],
+                }
+                (root / MANIFEST_NAME).write_text(_json.dumps(_manifest))
+                tests_dir = root / "tests"
+                tests_dir.mkdir(exist_ok=True)
+                (tests_dir / "test_cli.py").write_text("def test_cli(): assert True\n")
+                r = self.s.get("run", rid)
+                r["attempts"].append({"id": "t-" + phase, "phase": phase, "active_seconds": 10, "outcome": None})
+                self.s.update("run", rid, attempts=r["attempts"])
+                self.s.transition(rid, "implemented", spec_version=c["spec_version"])
+                return "tests_written"
+            self.s.transition(rid, "developing", spec_version=c["spec_version"])
+            if c["id"] in self.gates:
+                await self.gates[c["id"]].wait()
             self.s.transition(rid, "implemented")
             return "implemented"
 
@@ -159,7 +177,9 @@ class QueueTests(unittest.IsolatedAsyncioTestCase):
         await self.wait(lambda: self.s.get("comparison", first["id"])["status"] == "complete")
         after = self.s.detail(first["id"])
         self.assertEqual(self.calls[first["id"], "develop"], 3)
-        self.assertEqual(self.calls[first["id"], "generation"], 1)
+        # In the new flow harnesses write their own tests; no shared prepare_plan step.
+        self.assertEqual(self.calls[first["id"], "generation"], 0)
+        self.assertEqual(self.calls[first["id"], "test"], 3)   # one test-write turn per harness
         self.assertEqual(self.w.peak, 1)
         for old in before["runs"]:
             run = next(r for r in after["runs"] if r["id"] == old["id"])

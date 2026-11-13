@@ -53,7 +53,7 @@ async def discover(harness):
     command = codex_command("app-server") if harness == "codex" else ["kiro-cli", "acp"]
     rpc = await RPC(command, reject_request, ignore_notification).start()
     try:
-        client = {"name": "mchc", "version": "1.1.0"}
+        client = {"name": "mchc", "version": "1.2.0"}
         if harness == "codex":
             await rpc.call("initialize", {"clientInfo": client,
                 "capabilities": {"experimentalApi": True}}, 60)

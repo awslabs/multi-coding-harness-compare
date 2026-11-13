@@ -117,11 +117,25 @@ class IncidentRegressionTests(unittest.IsolatedAsyncioTestCase):
                 return SimpleNamespace(structured_output=reply, metrics=SimpleNamespace(
                     get_summary=lambda: {"accumulated_usage": {"outputTokens": spent}}))
 
-        async def phase(run_id, phase_name, spec, plan, readiness_reminder=False):
+        import json as _json
+        from arena.harness_tests import MANIFEST_NAME
+        from arena.worker import _TEST_PHASES
+        _MANIFEST = {
+            "version": 1,
+            "checks": [{"id": "acc-current", "scenario_id": "ACC-CURRENT",
+                        "command": "python -m pytest tests/", "junit": None}],
+            "test_files": ["tests/test_weather.py"],
+            "python_requirements": [],
+        }
+
+        async def phase(run_id, phase_name, spec, plan, readiness_reminder=False, **kwargs):
             harness = self.s.get("run", run_id)["harness"]
             self.calls[(harness, phase_name)] += 1
-            self.s.transition(run_id, "clarifying" if phase_name == "clarify" else "developing",
-                              spec_version=spec["spec_version"])
+            if phase_name in _TEST_PHASES:
+                self.s.transition(run_id, "testing", spec_version=spec["spec_version"])
+            else:
+                self.s.transition(run_id, "clarifying" if phase_name == "clarify" else "developing",
+                                  spec_version=spec["spec_version"])
             if phase_name == "clarify":
                 if harness in self.omit_ready and not readiness_reminder:
                     return "readiness_unverified"
@@ -130,6 +144,17 @@ class IncidentRegressionTests(unittest.IsolatedAsyncioTestCase):
             workspace = self.w.run_root(self.s.get("run", run_id)) / "workspace"
             workspace.mkdir(parents=True, exist_ok=True)
             (workspace / "weather_agent.py").write_text("print('weather')\n")
+            if phase_name in _TEST_PHASES:
+                (workspace / MANIFEST_NAME).write_text(_json.dumps(_MANIFEST))
+                tests_dir = workspace / "tests"
+                tests_dir.mkdir(exist_ok=True)
+                (tests_dir / "test_weather.py").write_text("def test_weather(): pass\n")
+                r = self.s.get("run", run_id)
+                r["attempts"].append({"id": "t-" + phase_name, "phase": phase_name,
+                                      "active_seconds": 10, "outcome": None})
+                self.s.update("run", run_id, attempts=r["attempts"])
+                self.s.transition(run_id, "implemented")
+                return "tests_written"
             self.s.transition(run_id, "implemented")
             return "implemented"
 
@@ -139,7 +164,7 @@ class IncidentRegressionTests(unittest.IsolatedAsyncioTestCase):
                                 "exit_code": 0, "log": "2 passed", "counts": {}}
                                for check in plan.checks], "environment": {}}
 
-        async def score(*args):
+        async def score(*args, **kwargs):
             self.calls["score"] += 1
             return {"overall": 90, "verified_complete": True}
 
@@ -200,22 +225,12 @@ class IncidentRegressionTests(unittest.IsolatedAsyncioTestCase):
                                     answers={"Q1-MODEL-ID": "us.anthropic.claude-sonnet-4-5"})
         await asyncio.wait_for(self.task, 30)
 
-        # Generation recovered from the invented scenario ID instead of
-        # exhausting its attempts, and the retry named the legal IDs.
-        attempts = self.review()["generation"]["attempts"]
-        self.assertEqual([a["outcome"] for a in attempts], ["invalid_tests", "complete"])
-        self.assertIn("unknown approved scenario ACC-SDK-WIRING", attempts[0]["issues"][0])
-        self.assertIn("The only approved scenario IDs are: ACC-CURRENT, ACC-FORECAST",
-                      self.prompts[3])
-        self.assertEqual([a["usage"]["outputTokens"] for a in attempts], [100, 100])
-
+        # In the new flow harnesses write their own tests; the planning model is
+        # only used for the proposal phase (plan generation is skipped).
+        # The proposal-phase retry is still verified above.
         comparison = self.s.get("comparison", self.id)
         self.assertEqual(comparison["status"], "complete")
         self.assertEqual(self.review()["status"], "approved")
-        self.assertTrue(self.review()["plan_sha256"])
-        self.assertEqual(comparison["plan"]["review_id"], self.review()["id"])
-        self.assertEqual(sorted(comparison["plan"]["review_coverage"]),
-                         ["ACC-CURRENT", "ACC-FORECAST"])
         for harness, run_id in self.runs.items():
             run = self.s.get("run", run_id)
             with self.subTest(harness=harness):
@@ -294,9 +309,9 @@ class IncidentRegressionTests(unittest.IsolatedAsyncioTestCase):
                                         answers={"Q1-MODEL-ID": "us.anthropic.claude-sonnet-4-5"})
             await asyncio.wait_for(self.task, 30)
         self.assertEqual([a["outcome"] for a in self.review()["planning"]["attempts"]], ["complete"])
-        self.assertEqual([a["outcome"] for a in self.review()["generation"]["attempts"]],
-                         ["complete"])
-        self.assertEqual(self.calls["model"], 2)
+        # In the new flow harnesses write their own tests; the planning model is only used
+        # for the proposal (1 model call), not for plan generation.
+        self.assertEqual(self.calls["model"], 1)
         for harness in ("claude", "codex", "kiro"):
             self.assertEqual(self.calls[(harness, "clarify")], 1)
         self.assertEqual(self.s.get("comparison", self.id)["status"], "complete")

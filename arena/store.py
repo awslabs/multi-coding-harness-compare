@@ -8,10 +8,31 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
+
+class _StoreEncoder(json.JSONEncoder):
+    """JSON encoder that converts bytes to their hex-string representation.
+
+    Lock bytes from create_lock() must not be stored in the JSON record per
+    DESIGN §9.9 ("lock bytes stay in run artifacts on disk"). Converting to
+    hex ensures serialisability while preserving the sha256 field that sits
+    alongside the bytes; callers that only need the sha256 string see it
+    unchanged inside the dict.
+    """
+
+    def default(self, o):
+        if isinstance(o, (bytes, bytearray)):
+            return o.hex()
+        return super().default(o)
+
+
+def _dumps(obj) -> str:
+    return json.dumps(obj, cls=_StoreEncoder)
+
 TERMINAL = {"blocked", "failed", "cancelled", "limit_exhausted", "interrupted",
             "verified_complete", "evaluated_failed", "evaluated_incomplete"}
 HARNESS_NAMES = ("claude", "codex", "kiro")
 COMPARISON_PHASE_PRIORITY = ("developing", "evaluating", "clarifying", "setup", "planning",
+                             "testing", "reviewing_tests",
                              "waiting_test_review", "waiting_user", "waiting_approval")
 
 
@@ -62,7 +83,7 @@ class Store:
     def put(self, kind: str, data: dict):
         with self.connect() as db:
             db.execute("INSERT OR REPLACE INTO objects VALUES (?,?,?)",
-                       (kind, data["id"], json.dumps(data)))
+                       (kind, data["id"], _dumps(data)))
         return data
 
     def get(self, kind: str, id: str) -> dict:
@@ -86,13 +107,13 @@ class Store:
             data = json.loads(row["data"])
             data.update(fields)
             db.execute("UPDATE objects SET data=? WHERE kind=? AND id=?",
-                       (json.dumps(data), kind, id))
+                       (_dumps(data), kind, id))
         return data
 
     def event(self, comparison: str, type: str, data: dict, run: str | None = None):
         with self.connect() as db:
             db.execute("INSERT INTO events(comparison_id,run_id,at,type,data) VALUES(?,?,?,?,?)",
-                       (comparison, run, now(), type, json.dumps(data)))
+                       (comparison, run, now(), type, _dumps(data)))
 
     def events(self, comparison: str, after: int = 0, limit: int = 1000):
         with self.connect() as db:
@@ -116,14 +137,14 @@ class Store:
         r.update(fields, status=status, intervals=intervals, updated_at=at)
         if status in TERMINAL:
             r["ended_at"] = at
-        db.execute("UPDATE objects SET data=? WHERE kind='run' AND id=?", (json.dumps(r), run_id))
+        db.execute("UPDATE objects SET data=? WHERE kind='run' AND id=?", (_dumps(r), run_id))
         # Clients fetch the current run after a status event. Keep the durable
         # stream small; evaluations and evidence remain in the run and artifacts.
         event = {"status": status, "updated_fields": sorted(fields)}
         event.update({key: fields[key] for key in ("error", "note", "model", "session_id", "artifacts")
                       if key in fields})
         db.execute("INSERT INTO events(comparison_id,run_id,at,type,data) VALUES(?,?,?,?,?)",
-                   (r["comparison_id"], run_id, at, "status", json.dumps(event)))
+                   (r["comparison_id"], run_id, at, "status", _dumps(event)))
         return r
 
     def detail(self, comparison_id: str):

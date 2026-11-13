@@ -892,7 +892,12 @@ class AgentCore:
                         continue
                     raise
 
-        active_seconds = self.config.active_seconds
+        # For test-stage phases the budget ceiling is test_active_seconds, not
+        # active_seconds (the development budget).  Use the same inline set that
+        # launch() uses so the two paths stay in sync without a cross-module import.
+        _is_test_phase = phase in {"test", "repair", "fix"}
+        active_seconds = (self.config.test_active_seconds
+                          if _is_test_phase else self.config.active_seconds)
         return {
             **info,
             "name": name,
@@ -1065,7 +1070,18 @@ class AgentCore:
         # and also capped any explicit command_timeout to that same 600s ceiling.
         # This clock runs while the turn is paused for a human answer, so a short
         # ceiling kills a harness that asked a clarifying question.
-        timeout = _effective_command_timeout(cfg, self.config.active_seconds)
+        #
+        # For test-stage phases the budget ceiling must be derived from the
+        # remaining test budget (DESIGN §9.2), never from development active_seconds.
+        # The worker passes the exact remaining budget via job["remaining_test_budget_seconds"]
+        # when available; otherwise the full test_active_seconds is used as a safe upper bound.
+        # Using {"test", "repair", "fix"} inline avoids a circular import from worker.py.
+        if phase in {"test", "repair", "fix"}:
+            remaining_test = job.get("remaining_test_budget_seconds",
+                                     self.config.test_active_seconds)
+            timeout = _effective_command_timeout(cfg, remaining_test)
+        else:
+            timeout = _effective_command_timeout(cfg, self.config.active_seconds)
 
         loop = asyncio.get_running_loop()
         remote = RemoteProcess(root=root)

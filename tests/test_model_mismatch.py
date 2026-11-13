@@ -314,6 +314,9 @@ class TestPlannerCallSites(unittest.IsolatedAsyncioTestCase):
             "id": "rev-approved-1", "status": "approved", "revision": 1, "spec_version": 1,
             "proposal": {}, "answers": {}, "approved_at": 0.0, "approval_sha256": "x",
             "requirements_sha256": requirements_digest(task_spec),
+            # plan_sha256 must be set to force the legacy (prepare_plan) path; without it
+            # approved_plan() uses the new harness-written-tests flow and skips prepare_plan.
+            "plan_sha256": "legacy-forced",
         }
         self.w.store.update("comparison", self.cid, test_review=task_spec["test_review"])
         checks = []

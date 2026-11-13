@@ -169,7 +169,7 @@ class CodexAdapter:
         try:
             started = time.monotonic()
             init = await self.rpc.call("initialize", {
-                "clientInfo": {"name": "mchc", "version": "1.1.0"},
+                "clientInfo": {"name": "mchc", "version": "1.2.0"},
                 "capabilities": {"experimentalApi": True}}, setup_seconds)
             # Remote stdout reaches the host in one buffered flush, so per-event
             # timestamps cannot separate the version check from app-server startup.

@@ -303,7 +303,8 @@ class Service:
             "planning": planning, "test_coverage": test_coverage,
             "specifications": [], "limits": {
                 k: getattr(self.config, k) for k in ("active_seconds", "setup_seconds", "check_seconds",
-                                                   "max_turns", "memory", "pids")},
+                                                   "max_turns", "memory", "pids",
+                                                   "test_active_seconds", "test_fix_rounds")},
         }
         data["test_review"] = new_review(data)
         runs = []
@@ -623,8 +624,11 @@ class Service:
 
     # Comparison statuses where the worker loop is actively running a task; spec_version
     # change is enough — do not reassign the comparison to the dispatch queue.
+    # W8: includes "testing" and "reviewing_tests" so a spec revision during the test
+    # stage is handled via the existing in-flight revision path, not a re-dispatch.
     _WORKER_ACTIVE = frozenset({"preparing", "clarifying", "developing", "evaluating", "planning",
-                                 "waiting_user", "waiting_approval", "reviewing_tests", "test_review_queued"})
+                                 "waiting_user", "waiting_approval", "testing", "reviewing_tests",
+                                 "test_review_queued"})
     # Comparison statuses set by reevaluate/reverify — no coding turns run; follow-ups must wait.
     _RESCORE = frozenset({"evaluation_queued", "verification_queued"})
 
@@ -728,21 +732,52 @@ class Service:
         if validation_plan is not None and not (reason or "").strip():
             raise ValueError("A corrected validation plan requires a reason for the audit history")
         previous = c.get("verification_plan", {})
-        source_plan = validation_plan if validation_plan is not None else (
-            previous["plan"] if previous.get("spec_version") == c["spec_version"] else c.get("plan"))
-        plan = Plan.model_validate(source_plan)
-        if c.get("test_review") and c["test_review"].get("plan_sha256") != plan_digest(plan):
-            raise ValueError("Changed tests need a new approved review. Use Request changes in Review tests.")
-        issues = plan_quality_issues(plan)
-        if issues:
-            raise ValueError("The saved evaluation plan needs correction before re-running checks: "
-                             + "; ".join(issues) + ". Supply a corrected plan with multi-coding-harness-compare reverify --plan.")
-        judge = self.judge_selection(judge_model, c)
-        revision = uid()
-        request = {"id": revision, "spec_version": c["spec_version"], "plan": plan.model_dump(),
-                   "reason": reason or "Re-run independent checks on the same saved implementations",
-                   "created_at": now(), "status": "queued", "judge": judge,
-                   "candidates": {r["id"]: r["artifacts"] for r in candidates}}
+        # Detect new-flow comparisons: test_review is set but plan_sha256 is None,
+        # meaning each harness wrote its own tests and there is no shared plan.
+        is_new_flow = (c.get("test_review") and c["test_review"].get("plan_sha256") is None
+                       and not validation_plan)
+        if is_new_flow:
+            # New-flow reverify uses each run's stored per-harness plan from case.json.
+            # A caller-supplied validation_plan is not supported for new-flow; direct
+            # them to review_saved_code instead.
+            candidates_dict = {}
+            for r in candidates:
+                art = r["artifacts"].copy()
+                case_data = json.loads(Path(art["case"]).read_text())
+                art["plan"] = case_data["plan"]  # per-harness plan from original evaluation
+                candidates_dict[r["id"]] = art
+            # Validate each per-run plan.
+            for r_id, art in candidates_dict.items():
+                try:
+                    per_plan = Plan.model_validate(art["plan"])
+                    q = plan_quality_issues(per_plan)
+                    if q:
+                        raise ValueError(f"Run {r_id}: " + "; ".join(q))
+                except Exception as exc:
+                    raise ValueError(f"Cannot re-verify: per-run plan invalid for run {r_id}: {exc}") from exc
+            judge = self.judge_selection(judge_model, c)
+            revision = uid()
+            request = {"id": revision, "spec_version": c["spec_version"], "plan": None,
+                       "reason": reason or "Re-run independent checks on the same saved per-harness plans",
+                       "created_at": now(), "status": "queued", "judge": judge,
+                       "candidates": candidates_dict}
+        else:
+            source_plan = validation_plan if validation_plan is not None else (
+                previous["plan"] if previous.get("spec_version") == c["spec_version"] else c.get("plan"))
+            plan = Plan.model_validate(source_plan)
+            if (c.get("test_review") and c["test_review"].get("plan_sha256") is not None
+                    and c["test_review"].get("plan_sha256") != plan_digest(plan)):
+                raise ValueError("Changed tests need a new approved review. Use Request changes in Review tests.")
+            issues = plan_quality_issues(plan)
+            if issues:
+                raise ValueError("The saved evaluation plan needs correction before re-running checks: "
+                                 + "; ".join(issues) + ". Supply a corrected plan with multi-coding-harness-compare reverify --plan.")
+            judge = self.judge_selection(judge_model, c)
+            revision = uid()
+            request = {"id": revision, "spec_version": c["spec_version"], "plan": plan.model_dump(),
+                       "reason": reason or "Re-run independent checks on the same saved implementations",
+                       "created_at": now(), "status": "queued", "judge": judge,
+                       "candidates": {r["id"]: r["artifacts"] for r in candidates}}
         if c.get("test_review"):
             request["test_review"] = {key: c["test_review"].get(key) for key in
                 ("id", "revision", "proposal", "answers", "approved_at", "approval_sha256", "plan_sha256")}

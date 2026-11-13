@@ -173,6 +173,12 @@ class Config(BaseModel):
     setup_seconds: int = 180
     check_seconds: int = 180
     max_turns: int = 80
+    # Test-stage budget and iteration settings (new harness-written-tests flow).
+    # test_active_seconds is the harness's own active time across all test-stage
+    # turns; it does NOT include review, sandbox runs, or time waiting for answers.
+    test_active_seconds: int = Field(default=3600, gt=0)
+    # Maximum number of app-driven follow-up turns after the initial write turn.
+    test_fix_rounds: int = Field(default=2, ge=0)
     memory: str = "2g"
     pids: int = 256
     max_parallel_comparisons: int = 10

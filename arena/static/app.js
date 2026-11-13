@@ -121,6 +121,83 @@ function creditsNote(run) {
   const value = run?.usage?.other_metrics?.credits;
   return typeof value === "number" ? `<small class="usage-note">${value.toFixed(3)} credits reported</small>` : "";
 }
+// Find the test agent review failure event for a run from the SSE log stream.
+function testAgentReviewFailure(run) {
+  // Check test_stages entry first (the worker stores the review failure there; R2-5).
+  const stages = run?.test_stages || [];
+  const specVersion = run?.spec_version;
+  const stageEntry = stages.length
+    ? (stages.find(e => e.spec_version === specVersion) || stages[stages.length - 1])
+    : null;
+  if (stageEntry?.review?.status === "failed" && stageEntry.review.failure) {
+    return stageEntry.review.failure;
+  }
+  // Fall back to SSE log events for backward compatibility.
+  return (logs || []).find(e => e.run_id === run?.id && e.type === "test_review_agent_failure")?.data?.failure;
+}
+// Return true if the run has a non-success test stage stop reason.
+function hasTestStageFailure(run) {
+  return !!(run?.test_stop_reason?.code && run.test_stop_reason.code !== "all_passed");
+}
+// HTML block for the test stage summary in the inspect-run dialog.
+function testStageSection(run) {
+  // Find the test_stages entry for the current spec version (or the last entry as fallback).
+  const stages = run?.test_stages || [];
+  const specVersion = run?.spec_version ?? current?.spec_version;
+  const stageEntry = stages.length
+    ? (stages.find(e => e.spec_version === specVersion) || stages[stages.length - 1])
+    : null;
+
+  // Fall back to run-level convenience copies when no entry exists.
+  const stopReason = stageEntry?.stop_reason || run?.test_stop_reason;
+  if (!stopReason) return "";
+
+  const TEST_PHASE_NAMES = ["test", "repair", "fix"];
+  const stopCode = stopReason.code;
+  const stopMsg = stopReason.message;
+
+  // Budget: prefer test_stages entry values; fall back to computed/configured.
+  const budgetSecs = stageEntry?.budget_seconds != null
+    ? stageEntry.budget_seconds
+    : current?.limits?.test_active_seconds;
+  const usedSecs = stageEntry
+    ? stageEntry.used_seconds
+    : (run.attempts || [])
+        .filter(a => TEST_PHASE_NAMES.includes(a.phase))
+        .reduce((sum, a) => sum + (a.active_seconds || 0), 0);
+
+  // Lock files: from entry lock object (keys) or run-level convenience copy.
+  const lockFiles = stageEntry?.lock?.files
+    ? Object.keys(stageEntry.lock.files)
+    : (run?.test_lock || []);
+
+  // Review failure: from entry first, then SSE log.
+  const entryReviewFail = stageEntry?.review?.status === "failed"
+    ? stageEntry.review.failure
+    : null;
+  const reviewFail = entryReviewFail || testAgentReviewFailure(run);
+
+  // Rich data only available from test_stages entry.
+  const rounds = stageEntry?.rounds || [];
+  const lockViolations = stageEntry?.lock_violations || [];
+  const evaluatedRound = stageEntry?.evaluated_round;
+  const review = stageEntry?.review?.status === "complete" ? stageEntry.review : null;
+  // Auto-locked files: locked by the app (conftest.py, pytest.ini, tox.ini), not listed
+  // by the harness in test_files.  Shown with a distinct badge (R2-6).
+  const autoLockedSet = new Set(stageEntry?.lock?.auto_locked || []);
+
+  return `<div class="evidence-row"><h3>Test stage</h3>
+    <p><b>Outcome:</b> ${esc(text(stopCode))}</p>
+    ${stopCode !== "all_passed" ? `<p class="test-stage-stop-reason">${esc(stopMsg)}</p>` : `<p>${esc(stopMsg)}</p>`}
+    ${budgetSecs != null ? `<p><b>Budget:</b> ${esc(duration(usedSecs))} used of ${esc(duration(budgetSecs))}</p>` : ""}
+    ${evaluatedRound != null ? `<p><b>Evaluated round:</b> ${esc(evaluatedRound)}</p>` : ""}
+    ${rounds.length ? `<details><summary>${rounds.length} test-stage round${rounds.length===1?"":"s"}</summary><ul>${rounds.map(r=>`<li><b>${esc(text(r.kind))}</b> (round ${esc(r.number)}): ${esc(r.outcome || "—")} · ${esc(duration(r.active_seconds))}</li>`).join("")}</ul></details>` : ""}
+    ${lockFiles.length ? `<details><summary>${lockFiles.length} locked test file${lockFiles.length===1?"":"s"}</summary><ul>${lockFiles.map(f=>`<li><code>${esc(f)}</code>${autoLockedSet.has(f) ? ` <small class="auto-locked-badge">(auto-locked)</small>` : ""}</li>`).join("")}</ul></details>` : ""}
+    ${lockViolations.length ? `<details><summary>${lockViolations.length} lock violation${lockViolations.length===1?"":"s"}</summary><ul>${lockViolations.map(v=>`<li>Round ${esc(v.round)}: <code>${esc(v.path)}</code> (${esc(text(v.kind))})</li>`).join("")}</ul></details>` : ""}
+    ${review?.scenarios?.length ? `<details><summary>Test agent review · ${review.scenarios.length} scenario${review.scenarios.length===1?"":"s"} rated</summary>${review.summary ? `<p>${esc(review.summary)}</p>` : ""}${review.concerns?.length ? `<ul>${review.concerns.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>` : ""}<ul>${review.scenarios.map(s=>`<li><b>${esc(s.scenario_id)}</b> · rating ${esc(String(s.rating))} · <em>${esc(s.verdict)}</em>: ${esc(s.reason)}${s.evidence ? ` <small><code>${esc(s.evidence)}</code></small>` : ""}</li>`).join("")}</ul></details>` : ""}
+    ${reviewFail ? `<div class="test-review-failure"><p><b>Test agent review failed</b></p><p class="trf-cause">${esc(reviewFail.message)}</p>${reviewFail.code || reviewFail.attempts != null ? `<p><small>${[reviewFail.code ? `Code: ${esc(reviewFail.code)}` : "", reviewFail.attempts != null ? `${esc(reviewFail.attempts)} attempt(s)` : ""].filter(Boolean).join(" · ")}</small></p>` : ""}</div>` : ""}
+  </div>`;
+}
 function usageLabel(run) {
   const usage = run?.usage;
   const label = run?.harness === "kiro" && usage?.completeness === "unavailable" ?
@@ -282,25 +359,35 @@ function statusLabel(status, review = null) {
   if (status === "archive_queued") return "Artifact storage retry queued";
   if (completedEvaluations.has(status)) return "Evaluation complete";
   if (status === "evaluated_incomplete") return "Evaluation incomplete";
+  if (status === "testing") return "Writing harness tests";
   if (status === "planning") {
     if(["queued","drafting"].includes(review?.status)) return "Preparing test cases";
-    if(review?.status === "approved" && !review.plan_sha256) return "Developing approved tests";
+    if(review?.status === "approved" && !review.plan_sha256) {
+      return review.generation_status === "generating" ? "Developing approved tests" : "Writing harness tests";
+    }
     return "Preparing evaluation";
   }
   if (status === "waiting_test_review") {
     if(["queued","drafting"].includes(review?.status)) return "Preparing test cases";
     if(review?.status === "proposal_failed") return "Test proposal failed";
     if(review?.status === "generation_failed") return "Test development failed";
-    if(review?.status === "approved") return review.plan_sha256 ? "Tests ready for evaluation" : "Developing approved tests";
+    if(review?.status === "approved") {
+      if(review.plan_sha256) return "Tests ready for evaluation";
+      return review.generation_status === "generating" ? "Developing approved tests" : "Writing harness tests";
+    }
     return "Awaiting test approval";
   }
   if (status === "test_review_queued") return "Preparing test review";
-  if (status === "reviewing_tests") return ["queued","drafting"].includes(review?.status) ?
-    "Preparing test cases" : "Developing approved tests";
+  if (status === "reviewing_tests") {
+    if(["queued","drafting"].includes(review?.status)) return "Preparing test cases";
+    if(review?.status === "approved" && !review?.plan_sha256 && review?.generation_status !== "generating")
+      return "Reviewing harness tests";
+    return "Developing approved tests";
+  }
   return text(status || "Awaiting task");
 }
 function badge(status) {
-  let cls = completedEvaluations.has(status) ? "good" : ["blocked","failed","waiting_user","waiting_approval","waiting_test_review","evaluated_incomplete","interrupted","limit_exhausted"].includes(status) ? "warn" : ["setup","developing","clarifying","planning","evaluating"].includes(status) ? "running" : "";
+  let cls = completedEvaluations.has(status) ? "good" : ["blocked","failed","waiting_user","waiting_approval","waiting_test_review","evaluated_incomplete","interrupted","limit_exhausted"].includes(status) ? "warn" : ["setup","developing","clarifying","planning","evaluating","testing","reviewing_tests"].includes(status) ? "running" : "";
   return `<span class="status-badge ${cls}">${esc(statusLabel(status, current?.test_review))}</span>`;
 }
 async function loadHistory() {
@@ -605,7 +692,7 @@ function renderPanels() {
     }
     const model = run ? (run.model || run.requested_model || "Native default") : ($("model-" + harness)?.value || system?.harnesses[harness]?.model || "Native default");
     const effort = run ? run.requested_effort : ($("effort-" + harness)?.value || system?.harnesses[harness]?.effort);
-    return `<article class="panel ${esc(harness)}"><div class="panel-header"><div class="harness-icon">${icons[harness]}</div><div><h3>${esc(names[harness])}</h3><small>${esc(model)}${effort ? ` · effort ${esc(effort)}` : ""}</small>${run?.model_mismatch?`<small class="model-mismatch">Ran ${esc(run.model_mismatch.reported)} instead of the requested ${esc(run.model_mismatch.requested)}</small>`:""}</div>${badge(run?.status)}</div>${current?.test_review?.failure?`<div class="panel-fail-strip">${esc(current.test_review.failure.stage==="test proposal"?"Test proposal":"Test development")} failed: ${esc(current.test_review.failure.cause)} <a href="#test-review-failure" class="test-fail-link">Details ↓</a></div>`:""}<div class="panel-activity" data-activity="${esc(harness)}">${activity(run)}</div><div class="panel-stats"><div><label>ACTIVE TIME</label><strong>${duration(run?.duration?.active)}</strong></div><div><label>TOKENS ${run?.usage?.completeness==="partial"?"· PARTIAL":""}</label><strong>${tokens(run?.usage?.total)}</strong>${creditsNote(run)}</div><div><label>OVERALL</label><strong>${score(run?.evaluation?.overall)}</strong></div></div>${projectOutputSummary(run)}<div class="panel-footer">${run?`<button data-review="${esc(run.id)}">Inspect run ↗</button>${run.artifacts?.patch?`<a href="/api/runs/${esc(run.id)}/patch">↓ Patch</a>`:""}${terminal.has(run.status)?`<button data-resume="${esc(run.id)}" class="cancel-run" ${artifactRetryAttributes()}>Resume</button>`:`<button data-cancel="${esc(run.id)}" class="cancel-run">Cancel</button>`}`:`<span class="subtle">Isolated checkout · independent session</span>`}${followUpPanelStatus(run)}</div></article>`;
+    return `<article class="panel ${esc(harness)}"><div class="panel-header"><div class="harness-icon">${icons[harness]}</div><div><h3>${esc(names[harness])}</h3><small>${esc(model)}${effort ? ` · effort ${esc(effort)}` : ""}</small>${run?.model_mismatch?`<small class="model-mismatch">Ran ${esc(run.model_mismatch.reported)} instead of the requested ${esc(run.model_mismatch.requested)}</small>`:""}</div>${badge(run?.status)}</div>${current?.test_review?.failure?`<div class="panel-fail-strip">${esc(current.test_review.failure.stage==="test proposal"?"Test proposal":"Test development")} failed: ${esc(current.test_review.failure.cause)} <a href="#test-review-failure" class="test-fail-link">Details ↓</a></div>`:""}${hasTestStageFailure(run)?`<div class="panel-fail-strip">${esc(run.test_stop_reason.message)}</div>`:""}${testAgentReviewFailure(run)?`<div class="panel-fail-strip">${esc(testAgentReviewFailure(run).message)}</div>`:""}<div class="panel-activity" data-activity="${esc(harness)}">${activity(run)}</div><div class="panel-stats"><div><label>ACTIVE TIME</label><strong>${duration(run?.duration?.active)}</strong></div><div><label>TOKENS ${run?.usage?.completeness==="partial"?"· PARTIAL":""}</label><strong>${tokens(run?.usage?.total)}</strong>${creditsNote(run)}</div><div><label>OVERALL</label><strong>${score(run?.evaluation?.overall)}</strong></div></div>${projectOutputSummary(run)}<div class="panel-footer">${run?`<button data-review="${esc(run.id)}">Inspect run ↗</button>${run.artifacts?.patch?`<a href="/api/runs/${esc(run.id)}/patch">↓ Patch</a>`:""}${terminal.has(run.status)?`<button data-resume="${esc(run.id)}" class="cancel-run" ${artifactRetryAttributes()}>Resume</button>`:`<button data-cancel="${esc(run.id)}" class="cancel-run">Cancel</button>`}`:`<span class="subtle">Isolated checkout · independent session</span>`}${followUpPanelStatus(run)}</div></article>`;
   }).join("");
   document.querySelectorAll("[data-activity]").forEach(el => el.scrollTop=el.scrollHeight);
   document.querySelectorAll("[data-review]").forEach(el => el.onclick=() => openReview(el.dataset.review));
@@ -652,7 +739,8 @@ function testReviewFailureBlock(failure) {
 function renderTestReview() {
   const review = current?.test_review;
   const preparing = ["queued","drafting"].includes(review?.status);
-  const developing = review?.status === "approved" && !review.plan_sha256;
+  const developing = review?.status === "approved" && !review.plan_sha256 && review?.generation_status === "generating";
+  const newFlowApproved = review?.status === "approved" && !review.plan_sha256 && review?.generation_status !== "generating";
   const progressId = preparing ? "test-proposal-progress" : developing ? "test-generation-progress" : null;
   const finished = current && ["complete","incomplete","interrupted"].includes(current.status);
   const signature = JSON.stringify([current?.id, current?.cancel_requested, finished,
@@ -696,7 +784,9 @@ function renderTestReview() {
   const canApprove = approvalAvailable && draft.test_coverage===coverage;
   const approvalLabel = preparing?"Preparing test cases…":review.status==="generation_failed"?
     "Retry approved test development":approvalRecorded?"Tests approved":"Approve tests for selected harnesses";
-  const status = locked ? "Approved tests finalized" : review.status==="approved" ? "Approved · developing executable tests" :
+  const status = locked ? "Approved tests finalized" :
+    (review.status==="approved" && newFlowApproved) ? "Each harness is writing its own tests" :
+    review.status==="approved" ? "Approved · developing executable tests" :
     review.status==="awaiting_review" ? "Your review is needed" : review.status==="proposal_failed" ? "Proposal needs attention" :
     review.status==="generation_failed" ? "Test development needs attention" : "Preparing proposed scenarios…";
   const progress = testReviewProgress(review, progressPlanner);
@@ -713,6 +803,7 @@ function renderTestReview() {
       <p id="test-proposal-progress" role="status">${esc(progress)}</p>` : ""}
     ${developing ? `<p class="notice">${review.generation_status==="generating" ? "The shared planner is writing executable tests from your approved scenarios." : "Executable test development is queued."} Your answers are recorded; you do not need to enter them again.</p>
       <p id="test-generation-progress" role="status">${esc(progress)}</p>` : ""}
+    ${newFlowApproved ? `<p class="notice">Each harness writes and runs its own test suite. Test scenarios are drawn from this proposal; each harness's implementation is exercised only by that harness's own tests. The harness's active time budget is ${duration(current?.limits?.test_active_seconds)} (excluding test-agent review time).</p>` : ""}
     ${review.failure ? testReviewFailureBlock(review.failure) : review.status==="generation_failed" ? '<p class="notice">The approved tests could not be developed, so these checks have not run. Your approval is retained; retry develops the same approved scenarios.</p>' : ""}
     ${!review.failure && review.error ? `<p class="notice" role="alert">${esc(review.error)}</p>` : ""}
     ${proposal ? `<p>${esc(proposal.summary)}</p>
@@ -752,7 +843,11 @@ function renderTestReview() {
     if($("update-test-coverage")) $("update-test-coverage").disabled=true;
     try {
       await api(`/comparisons/${comparisonId}/test-review/${action}`,{review_id:reviewId,...data});
-      toast(action==="approve" ? "Tests approved. Development of the shared tests can now proceed." : "Feedback saved. A revised proposal will need your approval.");
+      toast(action==="approve"
+        ? (!review.plan_sha256 && review.generation_status !== "generating"
+            ? "Tests approved. Each harness now writes and runs these tests after its implementation is saved."
+            : "Tests approved. Development of the shared tests can now proceed.")
+        : "Feedback saved. A revised proposal will need your approval.");
     } catch(e) { toast(e.message); }
     finally { testReviewSignature=""; if(selected===comparisonId) await refresh(); }
   };
@@ -790,7 +885,7 @@ function renderTable() {
       result && current.test_review && result.test_review_id!==current.test_review.id ? "<small>Earlier test review</small>" : "";
     const outcomes = checks.length ? `<button type="button" class="test-outcomes-link" data-evidence="${esc(run.id)}" aria-label="View test outcomes for ${esc(names[harness])}">${passed}/${checks.length} checks passed ↗</button>` : "Not run";
     const scopeNote = run?.evaluation_scope_note ? `<small class="evaluation-scope-note">Implementation saved · different follow-up requirements. <button type="button" class="test-outcomes-link" data-evidence="${esc(run.id)}" aria-label="View verification scope for ${esc(names[harness])}">Details ↗</button></small>` : "";
-    return `<tr><td>${esc(names[harness])}<small>${esc(run?.model || (run?.requested_model ? "Requested: " + run.requested_model : "Not reported"))}</small>${versionNote}${run?.model_mismatch?`<small class="model-mismatch">Ran ${esc(run.model_mismatch.reported)} instead of the requested ${esc(run.model_mismatch.requested)}</small>`:""}</td><td title="${esc(current?.prompt || "")}">${current ? esc(current.prompt.slice(0,25))+(current.prompt.length>25?"…":"") : "—"}</td><td>${badge(run?.status)}${scopeNote}${current?.test_review?.failure?`<small class="test-fail-cause">${esc(current.test_review.failure.stage==="test proposal"?"Test proposal":"Test development")} failed: ${esc(current.test_review.failure.cause)} <a href="#test-review-failure" class="test-fail-link">Details ↓</a></small>`:""}</td><td class="metric">${score(result?.accuracy?.score)}</td><td class="metric">${score(result?.relevance?.score)}</td><td class="metric">${score(result?.tests?.score)}</td><td class="metric">${score(result?.overall)}</td><td>${outcomes}</td><td title="${esc(gaps.join("\n"))}">${esc(gapSummary)}</td><td title="${esc(run?.usage?.unavailable_reason || "")}">${tokens(run?.usage?.total)}</td><td>${usageLabel(run)}</td><td>${duration(run?.duration?.active)}</td><td>${duration(run?.duration?.user_wait)}</td><td>${duration(run?.duration?.evaluation)}</td><td>${duration(run?.duration?.total)}</td></tr>`;
+    return `<tr><td>${esc(names[harness])}<small>${esc(run?.model || (run?.requested_model ? "Requested: " + run.requested_model : "Not reported"))}</small>${versionNote}${run?.model_mismatch?`<small class="model-mismatch">Ran ${esc(run.model_mismatch.reported)} instead of the requested ${esc(run.model_mismatch.requested)}</small>`:""}</td><td title="${esc(current?.prompt || "")}">${current ? esc(current.prompt.slice(0,25))+(current.prompt.length>25?"…":"") : "—"}</td><td>${badge(run?.status)}${scopeNote}${current?.test_review?.failure?`<small class="test-fail-cause">${esc(current.test_review.failure.stage==="test proposal"?"Test proposal":"Test development")} failed: ${esc(current.test_review.failure.cause)} <a href="#test-review-failure" class="test-fail-link">Details ↓</a></small>`:""}${hasTestStageFailure(run)?`<small class="test-fail-cause">${esc(run.test_stop_reason.message)}</small>`:""}</td><td class="metric">${score(result?.accuracy?.score)}</td><td class="metric">${score(result?.relevance?.score)}</td><td class="metric">${score(result?.tests?.score)}</td><td class="metric">${score(result?.overall)}</td><td>${outcomes}</td><td title="${esc(gaps.join("\n"))}">${esc(gapSummary)}</td><td title="${esc(run?.usage?.unavailable_reason || "")}">${tokens(run?.usage?.total)}</td><td>${usageLabel(run)}</td><td>${duration(run?.duration?.active)}</td><td>${duration(run?.duration?.user_wait)}</td><td>${duration(run?.duration?.evaluation)}</td><td>${duration(run?.duration?.total)}</td></tr>`;
   }).join("");
   document.querySelectorAll("[data-evidence]").forEach(el =>
     el.onclick=()=>openReview(el.dataset.evidence, "evidence").catch(e=>toast(e.message)));
@@ -939,7 +1034,7 @@ function testEvidence(run) {
 async function reviewTab(tab) {
   const r=reviewRun;
   let content="";
-  if(tab==="summary") content=`${badge(r.status)}${r.artifacts?.case?` <button id="reverify-run" class="secondary" ${artifactRetryAttributes()}>Re-run checks on saved code</button> <button id="reevaluate-run" class="secondary" ${artifactRetryAttributes()}>Re-score saved evidence</button>`:""}${r.error?`<p>${esc(r.error)}</p>`:""}${verificationScope(r)}${artifactLocations(r)}<div class="evidence-row"><h3>Requirement verification</h3>${(r.evaluation?.accuracy?.criteria||[]).map(c=>`<p><b>${esc(text(c.status))}</b> · ${esc(c.requirement)}<br><small>${esc(c.explanation)} Evidence: ${esc(c.evidence.join(", "))}</small></p>`).join("")||"<p>No independently verified requirements yet.</p>"}</div><h3>Quality assessment</h3><pre>${pretty(r.evaluation || {status:"Independent evaluation has not completed"})}</pre><h3>Timing & native usage</h3>${r.usage?.unavailable_reason?`<p>${esc(r.usage.unavailable_reason)}</p>${creditsNote(r)}`:""}<pre>${pretty({duration:r.duration,usage:r.usage})}</pre><h3>Configuration & native capabilities</h3><pre>${pretty({requested_model:r.requested_model,requested_effort:r.requested_effort,reported_model:r.model,runtime:r.runtime,capabilities:r.capabilities})}</pre>`;
+  if(tab==="summary") content=`${badge(r.status)}${r.artifacts?.case?` <button id="reverify-run" class="secondary" ${artifactRetryAttributes()}>Re-run checks on saved code</button> <button id="reevaluate-run" class="secondary" ${artifactRetryAttributes()}>Re-score saved evidence</button>`:""}${r.error?`<p>${esc(r.error)}</p>`:""}${verificationScope(r)}${artifactLocations(r)}${testStageSection(r)}<div class="evidence-row"><h3>Requirement verification</h3>${(r.evaluation?.accuracy?.criteria||[]).map(c=>`<p><b>${esc(text(c.status))}</b> · ${esc(c.requirement)}<br><small>${esc(c.explanation)} Evidence: ${esc(c.evidence.join(", "))}</small></p>`).join("")||"<p>No independently verified requirements yet.</p>"}</div><h3>Quality assessment</h3><pre>${pretty(r.evaluation || {status:"Independent evaluation has not completed"})}</pre><h3>Timing & native usage</h3>${r.usage?.unavailable_reason?`<p>${esc(r.usage.unavailable_reason)}</p>${creditsNote(r)}`:""}<pre>${pretty({duration:r.duration,usage:r.usage})}</pre><h3>Configuration & native capabilities</h3><pre>${pretty({requested_model:r.requested_model,requested_effort:r.requested_effort,reported_model:r.model,runtime:r.runtime,capabilities:r.capabilities})}</pre>`;
   if(tab==="diff") {
     const d=await api(`/runs/${r.id}/diff`), files=await api(`/runs/${r.id}/files`);
     content=`${r.artifacts?.patch?`<a href="/api/runs/${esc(r.id)}/patch">↓ Download implementation patch</a>`:""}<pre>${d.diff?d.diff.split("\n").map(line=>`<span class="${line.startsWith("+")?"diff-add":line.startsWith("-")?"diff-remove":""}">${esc(line)}</span>`).join("\n"):"No patch collected yet."}</pre><h3>Immutable snapshot files</h3>${files.files.map(path=>`<button class="file-button" data-file="${esc(path)}">${esc(path)}</button>`).join("")}<div id="file-content"></div>`;

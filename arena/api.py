@@ -113,7 +113,7 @@ def create_app() -> FastAPI:
         await catalogue.close()
         await judge_catalogue.close()
 
-    app = FastAPI(title="multi-coding-harness-compare", version="1.1.0", lifespan=lifespan)
+    app = FastAPI(title="multi-coding-harness-compare", version="1.2.0", lifespan=lifespan)
     app.state.service = service
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]"])
     static = Path(__file__).parent / "static"
